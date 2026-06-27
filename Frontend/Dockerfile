@@ -9,6 +9,8 @@ RUN npm ci --frozen-lockfile
 
 # Copy source and build
 COPY . .
+ARG VITE_SERVER_SESSIONS=false
+ENV VITE_SERVER_SESSIONS=$VITE_SERVER_SESSIONS
 RUN npm run build
 # Output lands in /app/dist
 

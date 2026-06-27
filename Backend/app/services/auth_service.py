@@ -24,7 +24,7 @@ from app.schemas.auth import (
     UserPublic,
 )
 from app.services import email_service
-from app.services.session_store import create_session, sessions_enabled
+from app.services.session_store import create_session, revoke_all_user_sessions, sessions_enabled
 
 # ตรงกับ Frontend userProfileComplete — ผู้ใช้ต้องแทนที่หลังล็อกอิน
 _REGISTER_PLACEHOLDER = "—"
@@ -194,4 +194,5 @@ def reset_password(session: Session, body: ResetPasswordRequest) -> ResetPasswor
             detail="ไม่พบบัญชีผู้ใช้",
         )
     session.commit()
+    revoke_all_user_sessions(user_id)
     return ResetPasswordResponse(message="ตั้งรหัสผ่านใหม่สำเร็จ — กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่")

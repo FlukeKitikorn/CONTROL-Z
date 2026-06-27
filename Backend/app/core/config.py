@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     redis_cache_default_ttl_seconds: int = 300
     redis_cache_ef_ttl_seconds: int = 3600
     redis_cache_calc_latest_ttl_seconds: int = 120
+    redis_cache_announcements_ttl_seconds: int = 60
+    redis_cache_bundle_ttl_seconds: int = 120
 
     # Server-side sessions (ต้องมี REDIS_URL) — ใช้คู่ JWT claim jti
     redis_sessions_enabled: bool = False

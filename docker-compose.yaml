@@ -39,6 +39,13 @@ x-backend-env: &backend-env
   MAIL_FROM: "${MAIL_FROM:-}"
   MAIL_FROM_NAME: "${MAIL_FROM_NAME:-CONTROL-Z}"
   REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:6379/0"
+  REDIS_CACHE_ENABLED: "${REDIS_CACHE_ENABLED:-true}"
+  REDIS_SESSIONS_ENABLED: "${REDIS_SESSIONS_ENABLED:-true}"
+  REDIS_CACHE_EF_TTL_SECONDS: "${REDIS_CACHE_EF_TTL_SECONDS:-3600}"
+  REDIS_CACHE_CALC_LATEST_TTL_SECONDS: "${REDIS_CACHE_CALC_LATEST_TTL_SECONDS:-120}"
+  REDIS_CACHE_ANNOUNCEMENTS_TTL_SECONDS: "${REDIS_CACHE_ANNOUNCEMENTS_TTL_SECONDS:-60}"
+  REDIS_CACHE_BUNDLE_TTL_SECONDS: "${REDIS_CACHE_BUNDLE_TTL_SECONDS:-120}"
+  SESSION_TTL_SECONDS: "${SESSION_TTL_SECONDS:-86400}"
 
 services:
 
@@ -116,7 +123,7 @@ services:
     tmpfs:
       - /tmp
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8000/ || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 -O /dev/null http://localhost:8000/api/v1/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

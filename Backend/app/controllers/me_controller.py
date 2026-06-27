@@ -10,6 +10,7 @@ from app.models import EditForm, User, UserPrivilege
 from app.schemas.auth import UserPublic
 from app.schemas.rest import MeDeleteConfirm, MeUpdate, PasswordChangeRequest
 from app.services import auth_service
+from app.services.session_store import revoke_all_user_sessions
 
 router = APIRouter(tags=["me"])
 
@@ -72,6 +73,7 @@ def delete_me(
     session.delete(priv)
     session.delete(user)
     session.commit()
+    revoke_all_user_sessions(uid)
 
 
 @router.patch("/me/password", response_model=UserPublic)
@@ -87,6 +89,7 @@ def patch_me_password(
     session.add(priv)
     session.commit()
     session.refresh(priv)
+    revoke_all_user_sessions(user.user_id)
     return auth_service.user_to_public(user, priv)
 
 
