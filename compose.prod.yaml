@@ -1,0 +1,21 @@
+# compose.prod.yaml — Production overrides
+#
+# Usage:
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d
+#
+# Pulls versioned images from GitHub Container Registry.
+# Update IMAGE_TAG to the version being deployed (set via env or edit here).
+#
+# Recommended: set IMAGE_TAG in your .env or pass via CI:
+#   IMAGE_TAG=v1.2.0 docker compose -f compose.yaml -f compose.prod.yaml up -d
+
+services:
+
+  frontend:
+    image: "ghcr.io/${GHCR_ORG:-your-org}/controlz-frontend:${IMAGE_TAG:-v1.0.0}"
+
+  backend:
+    image: "ghcr.io/${GHCR_ORG:-your-org}/controlz-backend:${IMAGE_TAG:-v1.0.0}"
+    # Production: enforce DEBUG=false regardless of .env
+    environment:
+      DEBUG: "false"

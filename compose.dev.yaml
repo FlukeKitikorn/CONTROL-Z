@@ -1,0 +1,22 @@
+# compose.dev.yaml — Development overrides
+#
+# Usage:
+#   docker compose -f compose.yaml -f compose.dev.yaml up
+#   docker compose -f compose.yaml -f compose.dev.yaml --profile tools up   # + phpMyAdmin
+#
+# Dev mode builds images locally from source instead of pulling from GHCR.
+
+services:
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    # Override: allow debug mode in dev
+    environment:
+      DEBUG: "${DEBUG:-true}"
