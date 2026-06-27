@@ -180,15 +180,13 @@ jobs:
             set -euo pipefail
             cd /opt/controlz
 
-            VERSION="${{ needs.setup.outputs.version }}"
-            IMAGE_PREFIX="${{ env.REGISTRY }}/${{ github.repository_owner }}/controlz"
-            export BACKEND_IMAGE="${IMAGE_PREFIX}-backend:${VERSION}"
-            export FRONTEND_IMAGE="${IMAGE_PREFIX}-frontend:${VERSION}"
+            export IMAGE_TAG="${{ needs.setup.outputs.version }}"
+            export GHCR_ORG="${{ github.repository_owner }}"
 
-            docker compose pull
-            docker compose up -d --remove-orphans
+            docker compose -f compose.yaml -f compose.prod.yaml pull
+            docker compose -f compose.yaml -f compose.prod.yaml up -d --remove-orphans
             docker image prune -f
-            echo "Dev deployment of ${VERSION} complete."
+            echo "Dev deployment of ${IMAGE_TAG} complete."
 
   # ── Deploy to Prod VPS ────────────────────────────────────────────────────────
   deploy-prod:
@@ -210,12 +208,10 @@ jobs:
             set -euo pipefail
             cd /opt/controlz
 
-            VERSION="${{ needs.setup.outputs.version }}"
-            IMAGE_PREFIX="${{ env.REGISTRY }}/${{ github.repository_owner }}/controlz"
-            export BACKEND_IMAGE="${IMAGE_PREFIX}-backend:${VERSION}"
-            export FRONTEND_IMAGE="${IMAGE_PREFIX}-frontend:${VERSION}"
+            export IMAGE_TAG="${{ needs.setup.outputs.version }}"
+            export GHCR_ORG="${{ github.repository_owner }}"
 
-            docker compose pull
-            docker compose up -d --remove-orphans
+            docker compose -f compose.yaml -f compose.prod.yaml pull
+            docker compose -f compose.yaml -f compose.prod.yaml up -d --remove-orphans
             docker image prune -f
-            echo "Prod deployment of ${VERSION} complete."
+            echo "Prod deployment of ${IMAGE_TAG} complete."
