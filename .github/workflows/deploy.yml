@@ -132,6 +132,10 @@ jobs:
         with:
           ref: ${{ needs.setup.outputs.version }}
 
+      - name: Lowercase repository owner
+        run: |
+          echo "OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
       - name: Set image prefix
         id: meta
         run: |
