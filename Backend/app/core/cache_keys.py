@@ -27,6 +27,14 @@ def calc_latest_key(org_id: int) -> str:
     return f"{_prefix()}:cache:calc:latest:{org_id}"
 
 
+def annual_bundle_key(org_id: int) -> str:
+    return f"{_prefix()}:cache:bundle:latest:{org_id}"
+
+
+def announcements_public_key() -> str:
+    return f"{_prefix()}:cache:announcements:public"
+
+
 def org_cache_pattern(org_id: int) -> str:
     return f"{_prefix()}:cache:*:{org_id}*"
 

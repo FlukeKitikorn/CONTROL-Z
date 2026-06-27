@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.core.deps import get_admin_privilege, get_current_user
+from app.core.cache import invalidate_announcements_cache, invalidate_ef_reference_cache
 from app.core.security import hash_password
 from app.models import (
     EditForm,
@@ -398,6 +399,7 @@ def admin_create_gwp(
     session.add(row)
     session.commit()
     session.refresh(row)
+    invalidate_ef_reference_cache()
     return row
 
 
@@ -419,6 +421,7 @@ def admin_patch_gwp(
     session.add(row)
     session.commit()
     session.refresh(row)
+    invalidate_ef_reference_cache()
     return row
 
 
@@ -434,6 +437,7 @@ def admin_delete_gwp(
         raise HTTPException(status_code=404, detail="ไม่พบรายการ")
     session.delete(row)
     session.commit()
+    invalidate_ef_reference_cache()
 
 
 @router.get("/announcements", response_model=list[AnnouncementRead])
@@ -459,6 +463,7 @@ def admin_create_announcement(
         priority=body.priority,
         created_by_email=current.email,
     )
+    invalidate_announcements_cache()
     return AnnouncementRead.model_validate(row)
 
 
@@ -480,6 +485,7 @@ def admin_patch_announcement(
     )
     if row is None:
         raise HTTPException(status_code=404, detail="ไม่พบประกาศ")
+    invalidate_announcements_cache()
     return AnnouncementRead.model_validate(row)
 
 
@@ -493,6 +499,7 @@ def admin_delete_announcement(
     ok = ann_store.delete_announcement(announcement_id, actor_email=current.email)
     if not ok:
         raise HTTPException(status_code=404, detail="ไม่พบประกาศ")
+    invalidate_announcements_cache()
 
 
 @router.get("/audit-log", response_model=list[AdminAuditEntryRead])

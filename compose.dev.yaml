@@ -1,10 +1,10 @@
 # compose.dev.yaml — Development overrides
 #
 # Usage:
-#   docker compose -f compose.yaml -f compose.dev.yaml up
-#   docker compose -f compose.yaml -f compose.dev.yaml --profile tools up   # + phpMyAdmin
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d phpmyadmin
 #
-# Dev mode builds images locally from source instead of pulling from GHCR.
+# Dev: build จาก source, expose ports, phpMyAdmin ที่ http://localhost:8081
 
 services:
 
@@ -12,11 +12,32 @@ services:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
+      args:
+        VITE_SERVER_SESSIONS: "${VITE_SERVER_SESSIONS:-true}"
 
   backend:
     build:
       context: ./Backend
       dockerfile: Dockerfile
-    # Override: allow debug mode in dev
+    ports:
+      - "8000:8000"
     environment:
       DEBUG: "${DEBUG:-true}"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  mysql:
+    ports:
+      - "3306:3306"
+
+  # เปิด phpMyAdmin อัตโนมัติใน dev (ไม่ต้อง --profile tools)
+  # พอร์ต 8081 เพราะ 8080 มักถูก Oracle TNS ใช้บน Windows
+  phpmyadmin:
+    profiles: !reset []
+    container_name: phpmyadmin_ui
+    ports:
+      - "127.0.0.1:8081:80"
+    environment:
+      PMA_ABSOLUTE_URI: "http://localhost:8081/"

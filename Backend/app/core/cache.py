@@ -106,6 +106,24 @@ def invalidate_org_calculation_cache(org_id: int) -> None:
     get_cache().delete(calc_latest_key(org_id))
 
 
+def invalidate_org_bundle_cache(org_id: int) -> None:
+    from app.core.cache_keys import annual_bundle_key
+
+    get_cache().delete(annual_bundle_key(org_id))
+
+
+def invalidate_org_data_cache(org_id: int) -> None:
+    """ล้าง cache ที่ผูก org (ผลคำนวณ + bundle กรอกข้อมูล)"""
+    invalidate_org_calculation_cache(org_id)
+    invalidate_org_bundle_cache(org_id)
+
+
+def invalidate_announcements_cache() -> None:
+    from app.core.cache_keys import announcements_public_key
+
+    get_cache().delete(announcements_public_key())
+
+
 def invalidate_ef_reference_cache() -> None:
     from app.core.cache_keys import ef_cache_pattern
 

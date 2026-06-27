@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, col, select
 
 from app.core.access import assert_org_access
-from app.core.cache import get_cache, invalidate_org_calculation_cache
-from app.core.cache_keys import calc_latest_key
+from app.core.cache import get_cache, invalidate_org_data_cache
+from app.core.cache_keys import annual_bundle_key, calc_latest_key
 from app.core.config import settings
 from app.core.database import get_session
 from app.core.deps import get_current_privilege, get_current_user
@@ -51,7 +51,7 @@ def save_bundle(
     bundle_dict = body.model_dump()
     save_annual_report_bundle(session, org_id, bundle_dict)
     session.commit()
-    invalidate_org_calculation_cache(org_id)
+    invalidate_org_data_cache(org_id)
     return body
 
 
@@ -66,10 +66,23 @@ def get_latest_bundle(
     priv: Annotated[UserPrivilege, Depends(get_current_privilege)],
 ) -> AnnualReportingBundle:
     assert_org_access(user, priv, org_id)
-    raw = load_latest_annual_report_bundle(session, org_id)
-    if raw is None:
-        raise HTTPException(status_code=404, detail="ยังไม่มีข้อมูลที่บันทึกสำหรับปีรายงาน")
-    return AnnualReportingBundle(**raw)
+    cache = get_cache()
+    key = annual_bundle_key(org_id)
+
+    def load_bundle() -> AnnualReportingBundle:
+        raw = load_latest_annual_report_bundle(session, org_id)
+        if raw is None:
+            raise HTTPException(status_code=404, detail="ยังไม่มีข้อมูลที่บันทึกสำหรับปีรายงาน")
+        return AnnualReportingBundle(**raw)
+
+    if cache.enabled:
+        cached = cache.get_json(key)
+        if cached is not None:
+            return AnnualReportingBundle(**cached)
+        bundle = load_bundle()
+        cache.set_json(key, bundle.model_dump(), settings.redis_cache_bundle_ttl_seconds)
+        return bundle
+    return load_bundle()
 
 
 @router.post(
@@ -106,7 +119,7 @@ def run_calculation(
                 ran_at=ran_at,
             )
             session.commit()
-            invalidate_org_calculation_cache(org_id)
+            invalidate_org_data_cache(org_id)
             total_kg = totals["total_kgco2e"]
             return CalculationRunResponse(
                 ran_at=ran_at,
