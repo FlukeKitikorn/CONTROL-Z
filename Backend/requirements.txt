@@ -24,7 +24,7 @@ loguru==0.7.3
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
-bcrypt==4.3.0
+bcrypt==5.0.0
 pyasn1==0.6.3
 pydantic==2.13.3
 pydantic-extra-types==2.11.1
