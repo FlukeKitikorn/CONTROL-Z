@@ -1,38 +1,129 @@
 name: Deploy
 
 on:
+  # Auto-deploy on tag push
+  # Tag pattern:  v1.2.3           → prod
+  #               v1.2.3-dev/beta/rc → dev
   push:
     tags:
       - 'v*.*.*'
+
+  # Manual deploy: choose environment + image tag
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      tag:
+        description: 'Image tag to deploy (e.g. v1.2.3)'
+        required: true
+        type: string
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
-  # ── Build Docker images and push to GHCR ────────────────────────────────────
+  # ── Resolve environment and version from tag or manual input ─────────────────
+  setup:
+    name: Resolve Context
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.ctx.outputs.environment }}
+      version:     ${{ steps.ctx.outputs.version }}
+      floating_tag: ${{ steps.ctx.outputs.floating_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed for branch ancestry check
+
+      # Gate 1: tag must originate from the releases branch
+      - name: Verify tag is on releases branch
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          git fetch origin releases
+          if ! git merge-base --is-ancestor "${{ github.sha }}" origin/releases; then
+            echo "::error::Tags must be created from the 'releases' branch. Aborting."
+            exit 1
+          fi
+          echo "Verified: commit is on the releases branch."
+
+      # Gate 2: wait for CI to complete on this commit before doing anything.
+      # Polls every 30 s for up to 15 min (tag push only; manual dispatch skips this).
+      - name: Verify CI checks passed
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Waiting for CI checks on ${{ github.sha }} ..."
+          for i in $(seq 1 30); do
+            RESULT=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/check-runs" \
+              --jq '
+                .check_runs
+                | map(select(.name | test("Security Scan|Test Backend|Test Frontend")))
+                | if length == 0 then "pending"
+                  elif all(.conclusion == "success") then "success"
+                  elif any(.conclusion | . == "failure" or . == "cancelled" or . == "timed_out") then "failure"
+                  else "pending"
+                  end
+              ')
+            echo "Attempt ${i}/30 — CI status: ${RESULT}"
+            [ "$RESULT" = "success" ] && { echo "CI passed. Proceeding."; break; }
+            [ "$RESULT" = "failure" ] && { echo "CI failed. Aborting deploy."; exit 1; }
+            sleep 30
+          done
+          [ "$RESULT" != "success" ] && { echo "CI timed out after 15 min."; exit 1; } || true
+
+      - name: Resolve environment and version
+        id: ctx
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ENV="${{ inputs.environment }}"
+            VERSION="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG}"
+            if [[ "$TAG" =~ -(dev|beta|rc|alpha) ]]; then
+              ENV="dev"
+            else
+              ENV="prod"
+            fi
+          fi
+
+          FLOATING_TAG="$( [ "$ENV" = "prod" ] && echo "latest" || echo "dev" )"
+
+          echo "environment=${ENV}"       >> $GITHUB_OUTPUT
+          echo "version=${VERSION}"       >> $GITHUB_OUTPUT
+          echo "floating_tag=${FLOATING_TAG}" >> $GITHUB_OUTPUT
+          echo "Resolved: version=${VERSION}  env=${ENV}  floating=${FLOATING_TAG}"
+
+  # ── Build Docker images and push to GHCR ─────────────────────────────────────
   build-and-push:
     name: Build & Push Docker Images
+    needs: setup
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     outputs:
-      version: ${{ steps.meta.outputs.version }}
       image_prefix: ${{ steps.meta.outputs.image_prefix }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.version }}
 
-      - name: Extract version and image prefix
+      - name: Set image prefix
         id: meta
         run: |
-          VERSION="${GITHUB_REF#refs/tags/}"
           IMAGE_PREFIX="${{ env.REGISTRY }}/${{ github.repository_owner }}/controlz"
-          echo "version=${VERSION}"       >> $GITHUB_OUTPUT
           echo "image_prefix=${IMAGE_PREFIX}" >> $GITHUB_OUTPUT
-          echo "Deploying version: ${VERSION}"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -44,7 +135,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ── Backend image ────────────────────────────────────────────────────────
+      # Docker layer cache is stored in GitHub Actions Cache (GHA scope per image)
       - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
@@ -52,11 +143,11 @@ jobs:
           file: ./Backend/Dockerfile
           push: true
           tags: |
-            ${{ steps.meta.outputs.image_prefix }}-backend:${{ steps.meta.outputs.version }}
+            ${{ steps.meta.outputs.image_prefix }}-backend:${{ needs.setup.outputs.version }}
+            ${{ steps.meta.outputs.image_prefix }}-backend:${{ needs.setup.outputs.floating_tag }}
           cache-from: type=gha,scope=backend
           cache-to:   type=gha,scope=backend,mode=max
 
-      # ── Frontend image ───────────────────────────────────────────────────────
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
@@ -64,16 +155,48 @@ jobs:
           file: ./Frontend/Dockerfile
           push: true
           tags: |
-            ${{ steps.meta.outputs.image_prefix }}-frontend:${{ steps.meta.outputs.version }}
+            ${{ steps.meta.outputs.image_prefix }}-frontend:${{ needs.setup.outputs.version }}
+            ${{ steps.meta.outputs.image_prefix }}-frontend:${{ needs.setup.outputs.floating_tag }}
           cache-from: type=gha,scope=frontend
           cache-to:   type=gha,scope=frontend,mode=max
 
-  # ── SSH into VPS and deploy new images ──────────────────────────────────────
-  deploy:
-    name: Deploy to VPS
+  # ── Deploy to Dev VPS ─────────────────────────────────────────────────────────
+  deploy-dev:
+    name: Deploy to Dev VPS
+    needs: [setup, build-and-push]
+    if: needs.setup.outputs.environment == 'dev'
     runs-on: ubuntu-latest
-    needs: build-and-push
-    environment: production
+    environment: development   # maps to GitHub environment (can require approval)
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host:     ${{ secrets.VPS_DEV_HOST }}
+          username: ${{ secrets.VPS_DEV_USER }}
+          key:      ${{ secrets.VPS_DEV_SSH_KEY }}
+          port:     ${{ secrets.VPS_DEV_PORT }}
+          script: |
+            set -euo pipefail
+            cd /opt/controlz
+
+            VERSION="${{ needs.setup.outputs.version }}"
+            IMAGE_PREFIX="${{ env.REGISTRY }}/${{ github.repository_owner }}/controlz"
+            export BACKEND_IMAGE="${IMAGE_PREFIX}-backend:${VERSION}"
+            export FRONTEND_IMAGE="${IMAGE_PREFIX}-frontend:${VERSION}"
+
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
+            echo "Dev deployment of ${VERSION} complete."
+
+  # ── Deploy to Prod VPS ────────────────────────────────────────────────────────
+  deploy-prod:
+    name: Deploy to Prod VPS
+    needs: [setup, build-and-push]
+    if: needs.setup.outputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    environment: production    # maps to GitHub environment (can require approval)
 
     steps:
       - name: Deploy via SSH
@@ -87,24 +210,12 @@ jobs:
             set -euo pipefail
             cd /opt/controlz
 
-            echo "Deploying version: ${{ needs.build-and-push.outputs.version }}"
-
-            # Update image version in compose override (or set via env)
-            # The production compose uses image: tags — update them here.
-            VERSION="${{ needs.build-and-push.outputs.version }}"
+            VERSION="${{ needs.setup.outputs.version }}"
             IMAGE_PREFIX="${{ env.REGISTRY }}/${{ github.repository_owner }}/controlz"
-
-            # Export so docker compose picks them up if using variable substitution
             export BACKEND_IMAGE="${IMAGE_PREFIX}-backend:${VERSION}"
             export FRONTEND_IMAGE="${IMAGE_PREFIX}-frontend:${VERSION}"
 
-            # Pull updated images
             docker compose pull
-
-            # Rolling deploy (start-first order set in deploy.update_config)
             docker compose up -d --remove-orphans
-
-            # Clean up dangling images to reclaim disk space
             docker image prune -f
-
-            echo "Deployment of ${VERSION} complete."
+            echo "Prod deployment of ${VERSION} complete."
