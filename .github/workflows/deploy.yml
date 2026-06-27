@@ -20,7 +20,7 @@ on:
           - dev
           - prod
       tag:
-        description: 'Image tag to deploy (e.g. v1.2.3)'
+        description: 'Version to deploy — digits only, no "v" prefix (e.g. 1.2.3 or 1.2.3-dev)'
         required: true
         type: string
 
@@ -81,10 +81,23 @@ jobs:
 
       - name: Resolve environment and version
         id: ctx
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             ENV="${{ inputs.environment }}"
-            VERSION="${{ inputs.tag }}"
+            # Auto-prepend "v" if user didn't type it
+            RAW="${{ inputs.tag }}"
+            RAW="${RAW#v}"          # strip leading v if present
+            VERSION="v${RAW}"      # always ensure v prefix
+
+            # Validate tag exists on GitHub
+            if ! gh api "repos/${{ github.repository }}/git/refs/tags/${VERSION}" \
+                --silent 2>/dev/null; then
+              echo "::error::Tag '${VERSION}' does not exist on GitHub. Create it first with: git tag ${VERSION} && git push origin ${VERSION}"
+              exit 1
+            fi
+            echo "Tag ${VERSION} verified on GitHub."
           else
             TAG="${GITHUB_REF#refs/tags/}"
             VERSION="${TAG}"
