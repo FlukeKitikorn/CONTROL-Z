@@ -24,11 +24,13 @@ import {
 } from "antd"
 import type { UploadFile } from "antd/es/upload/interface"
 import type { ReactNode } from "react"
+import { CreateInput, type Address as ThaiAddress } from "thai-address-autocomplete-react"
 import { PageHeader } from "@/components/common/PageHeader"
 
 export type OrganizationRegistrationVariant = "admin" | "user"
 
 const MAX_IMAGE_MB = 2
+const ThaiAddressInput = CreateInput()
 
 const BUSINESS_TYPE_OPTIONS = [
   { value: "industry", label: "Industrial" },
@@ -200,11 +202,19 @@ function createImageBeforeUpload(showError: (content: string) => void, fieldLabe
 
 type OrganizationRegistrationFormProps = {
   variant: OrganizationRegistrationVariant
+  /** ซ่อนหัวหน้าหน้าเมื่ออยู่ใน Modal */
+  embedded?: boolean
+  /** เรียกหลังบันทึกฟอร์มสำเร็จ (เช่น ปิดโมดัลแล้วโหลดรายการใหม่) */
+  onSuccess?: () => void
 }
 
-export function OrganizationRegistrationForm({ variant }: OrganizationRegistrationFormProps) {
+export function OrganizationRegistrationForm({ variant, embedded = false, onSuccess }: OrganizationRegistrationFormProps) {
   const { message } = App.useApp()
   const [form] = Form.useForm()
+  const subdistrictValue = (Form.useWatch("subdistrict", form) as string | undefined) ?? ""
+  const districtValue = (Form.useWatch("district", form) as string | undefined) ?? ""
+  const provinceValue = (Form.useWatch("province", form) as string | undefined) ?? ""
+  const postalCodeValue = (Form.useWatch("postal_code", form) as string | undefined) ?? ""
   const c = COPY[variant]
   const beforeLogo = createImageBeforeUpload(message.error, "Logo")
   const beforeMap = createImageBeforeUpload(message.error, "Location map")
@@ -213,13 +223,25 @@ export function OrganizationRegistrationForm({ variant }: OrganizationRegistrati
   const onFinish = (values: Record<string, unknown>) => {
     console.info(c.consoleLogPrefix, values)
     message.success(c.successMessage)
+    onSuccess?.()
+  }
+
+  const onThaiAddressSelect = (picked: ThaiAddress) => {
+    form.setFieldsValue({
+      subdistrict: picked.district ?? "",
+      district: picked.amphoe ?? "",
+      province: picked.province ?? "",
+      postal_code: picked.zipcode != null ? String(picked.zipcode) : "",
+    })
   }
 
   return (
-    <div className="org-registration w-full min-w-0 px-1 pb-28 sm:px-2 md:px-0">
-      <div className="mb-6">
-        <PageHeader title={c.pageTitle} description={c.pageDescription} />
-      </div>
+    <div
+      className={`org-registration w-full min-w-0 px-1 sm:px-2 md:px-0 ${embedded ? "pb-6" : "pb-28"}`}
+    >
+      {!embedded ? (
+        <PageHeader title={c.pageTitle} description={c.pageDescription} className="mb-2" />
+      ) : null}
 
       <Alert
         type="info"
@@ -372,7 +394,12 @@ export function OrganizationRegistrationForm({ variant }: OrganizationRegistrati
                 label="ตำบล"
                 rules={[{ required: true, message: "Enter subdistrict" }]}
               >
-                <Input placeholder="Subdistrict" />
+                <ThaiAddressInput.District
+                  value={subdistrictValue}
+                  onChange={(v: string) => form.setFieldValue("subdistrict", v)}
+                  onSelect={onThaiAddressSelect}
+                  autoCompleteProps={{ placeholder: "Subdistrict" }}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={6}>
@@ -381,7 +408,12 @@ export function OrganizationRegistrationForm({ variant }: OrganizationRegistrati
                 label="อำเภอ"
                 rules={[{ required: true, message: "Enter district" }]}
               >
-                <Input placeholder="District" />
+                <ThaiAddressInput.Amphoe
+                  value={districtValue}
+                  onChange={(v: string) => form.setFieldValue("district", v)}
+                  onSelect={onThaiAddressSelect}
+                  autoCompleteProps={{ placeholder: "District" }}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={6}>
@@ -390,7 +422,12 @@ export function OrganizationRegistrationForm({ variant }: OrganizationRegistrati
                 label="จังหวัด"
                 rules={[{ required: true, message: "Enter province" }]}
               >
-                <Input placeholder="Province" />
+                <ThaiAddressInput.Province
+                  value={provinceValue}
+                  onChange={(v: string) => form.setFieldValue("province", v)}
+                  onSelect={onThaiAddressSelect}
+                  autoCompleteProps={{ placeholder: "Province" }}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={6}>
@@ -402,7 +439,12 @@ export function OrganizationRegistrationForm({ variant }: OrganizationRegistrati
                   { pattern: /^\d{5}$/, message: "5 digits" },
                 ]}
               >
-                <Input placeholder="10110" maxLength={5} inputMode="numeric" />
+                <ThaiAddressInput.Zipcode
+                  value={postalCodeValue}
+                  onChange={(v: string) => form.setFieldValue("postal_code", v)}
+                  onSelect={onThaiAddressSelect}
+                  autoCompleteProps={{ placeholder: "10110", maxLength: 5 }}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>

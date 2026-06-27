@@ -12,6 +12,7 @@ import {
 import { useMemo, useState, type ReactNode } from "react"
 import { Bar } from "react-chartjs-2"
 
+import { DATA_NOT_FOUND_LABEL } from "@/lib/dataNotFound"
 import { exportFr05ToExcelFile, buildFr05ExcelExportPayload } from "@/pages/reports/fr05/fr05InventoryExcelExport"
 import {
   type Fr05ReportBundle,
@@ -308,6 +309,8 @@ export function Fr05InventoryReportTemplate({
 }: Fr05InventoryReportTemplateProps) {
   const bundle = useMemo(() => resolveFr05ReportBundle(bundleProp ?? null), [bundleProp])
   const usingApi = Boolean(bundleProp?.current?.rows?.length && bundleProp?.base?.rows?.length)
+  const showNotFound = bundleProp === null && !tableLoading
+  const showFooter = Boolean(bundleProp) && !tableLoading
   const [exportErr, setExportErr] = useState<string | null>(null)
 
   const currentBars = useMemo(() => fr05ScopeBarValues(bundle.current), [bundle.current])
@@ -328,6 +331,7 @@ export function Fr05InventoryReportTemplate({
           <Space wrap size="small">
             <Button
               type="default"
+              disabled={!bundleProp}
               onClick={async () => {
                 setExportErr(null)
                 try {
@@ -347,17 +351,27 @@ export function Fr05InventoryReportTemplate({
         ) : null}
 
         <Spin spinning={tableLoading}>
-          <Fr05SectionBlock
-            section={bundle.current}
-            chartSlot={<Fr05ScopeBarChart labels={labels} values={currentVals} />}
-          />
-          <Fr05SectionBlock
-            section={bundle.base}
-            chartSlot={<Fr05ComparisonBarChart labels={labels} baseValues={baseVals} currentValues={currentVals} />}
-          />
+          {tableLoading ? (
+            <div className="min-h-[240px]" aria-hidden />
+          ) : showNotFound ? (
+            <Alert type="warning" showIcon message={DATA_NOT_FOUND_LABEL} className="mb-2" />
+          ) : (
+            <>
+              <Fr05SectionBlock
+                section={bundle.current}
+                chartSlot={<Fr05ScopeBarChart labels={labels} values={currentVals} />}
+              />
+              <Fr05SectionBlock
+                section={bundle.base}
+                chartSlot={
+                  <Fr05ComparisonBarChart labels={labels} baseValues={baseVals} currentValues={currentVals} />
+                }
+              />
+            </>
+          )}
         </Spin>
       </div>
-      <Fr05CompletionFooter footer={bundle.footer} />
+      {showFooter ? <Fr05CompletionFooter footer={bundle.footer} /> : null}
     </div>
   )
 }

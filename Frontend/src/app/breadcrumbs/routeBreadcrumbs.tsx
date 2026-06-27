@@ -29,7 +29,7 @@ export function mainAppBreadcrumbItems(pathname: string): BreadcrumbItem[] {
 
   const routes: Record<string, BreadcrumbItem[]> = {
     "/app/data-input": [dash, { title: "กรอกข้อมูล" }],
-    "/app/results": [dash, { title: "ผลการคำนวณ" }],
+    "/app/results": [dash, { title: "การคำนวณ" }],
     "/app/settings": [dash, { title: "ตั้งค่า" }],
     "/app/setup/organization": [dash, { title: "ตั้งค่าองค์กร" }, { title: "องค์กร" }],
     "/app/setup/base-year": [dash, { title: "ตั้งค่าองค์กร" }, { title: "ปีฐาน" }],
@@ -53,6 +53,10 @@ export function adminBreadcrumbItems(pathname: string): BreadcrumbItem[] {
     "/admin/organizations": [root, { title: "องค์กร" }],
     "/admin/factors": [root, { title: "ปัจจัยการปล่อย" }],
     "/admin/monitoring": [root, { title: "ตรวจสอบข้อมูล" }],
+    "/admin/announcements": [root, { title: "ประกาศ" }],
+    "/admin/settings": [root, { title: "ตั้งค่าผู้ดูแล" }],
+    "/admin/logs": [root, { title: "บันทึกและตรวจสอบ" }],
+    "/admin/terminal": [root, { title: "Terminal — บันทึกระบบ" }],
   }
 
   return routes[p] ?? [root, { title: p.replace("/admin", "") || "หน้า" }]

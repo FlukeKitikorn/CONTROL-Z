@@ -1,5 +1,7 @@
-import { Col, Row, Spin, Typography } from "antd"
+import { Alert, Col, Row, Spin, Typography } from "antd"
 import { useMemo } from "react"
+
+import { DATA_NOT_FOUND_LABEL } from "@/lib/dataNotFound"
 
 import {
   type Fr04ReportBundle,
@@ -135,6 +137,8 @@ export function Fr04InventoryReportTemplate({
   const isBaseYear = variant === "Fr_04.2"
   const bundle = useMemo(() => resolveFr04ReportBundle(bundleProp ?? null), [bundleProp])
   const usingApi = Boolean(bundleProp?.rows?.length)
+  const showNotFound = bundleProp === null && !tableLoading
+  const showFooter = Boolean(bundleProp) && !tableLoading
 
   const metaLine = useMemo(() => {
     if (isBaseYear) {
@@ -157,16 +161,22 @@ export function Fr04InventoryReportTemplate({
             <span className="font-semibold">ข้อมูลปีฐาน</span>
             <span className="mx-2 text-blue-400">|</span>
             <span>
-              {baseYearLabel?.trim() || "ยังไม่มีช่วงปีฐานในระบบ — กรุณาบันทึกช่วงปีฐานในหน้ากรอกข้อมูลก่อน"}
+              {baseYearLabel?.trim() || DATA_NOT_FOUND_LABEL}
             </span>
           </div>
         ) : null}
 
         <Spin spinning={tableLoading}>
-          <Fr04WideInventoryTable bundle={bundle} />
+          {tableLoading ? (
+            <div className="min-h-[200px]" aria-hidden />
+          ) : showNotFound ? (
+            <Alert type="warning" showIcon message={DATA_NOT_FOUND_LABEL} className="mb-2" />
+          ) : (
+            <Fr04WideInventoryTable bundle={bundle} />
+          )}
         </Spin>
       </div>
-      <Fr04CompletionFooter footer={bundle.footer} />
+      {showFooter ? <Fr04CompletionFooter footer={bundle.footer} /> : null}
     </div>
   )
 }

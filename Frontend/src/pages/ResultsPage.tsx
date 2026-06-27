@@ -1,13 +1,69 @@
-import { FileExcelOutlined } from "@ant-design/icons"
-import { Alert, App, Button, Card, Col, Descriptions, Empty, Progress, Row, Space, Table, Tag, Typography } from "antd"
+import { CalculatorOutlined, ReloadOutlined } from "@ant-design/icons"
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Col,
+  Empty,
+  Row,
+  Select,
+  Space,
+  Spin,
+  Statistic,
+  Table,
+  Tooltip,
+  Typography,
+} from "antd"
+import type { ColumnsType } from "antd/es/table"
+import {
+  BarElement,
+  CategoryScale,
+  Chart as ChartJS,
+  Legend,
+  LinearScale,
+  Title,
+  Tooltip as ChartTooltip,
+  type ChartOptions,
+} from "chart.js"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { Bar } from "react-chartjs-2"
 import { Link } from "react-router"
 
 import { PageHeader } from "@/components/common/PageHeader"
-import { MetricCard } from "@/components/dashboard/MetricCard"
-import { CONTROL_Z_CALC_RESULTS_UPDATED, type CalculationResultsSnapshot, loadCalculationResultsSnapshot } from "@/lib/calculationResultsStorage"
-import { formatDateRangeTh, getLatestBaseYearSnapshot, getOrganizationStorageId } from "@/lib/organizationBaseYearStorage"
+import { PageHeaderButton } from "@/components/common/PageHeaderButton"
+import { ApiError } from "@/lib/api/http"
+import type { AnnualReportingBundleRead, CollectInformationRead } from "@/lib/api/types"
+import {
+  getAnnualReportBundleLatest,
+  getCalculationLatest,
+  listCollectInformation,
+  postCalculationRun,
+} from "@/lib/api/service"
+import type { CalculationResultsSnapshot } from "@/lib/calculationResultsStorage"
+import {
+  calculationSnapshotFromApi,
+  CONTROL_Z_CALC_RESULTS_UPDATED,
+  notifyCalculationResultsUpdated,
+} from "@/lib/calculationResultsStorage"
+import { appendCalculationHistory } from "@/lib/calculationHistoryStorage"
+import { evaluateCalculationReadinessFromBundle } from "@/lib/dataInputValidation"
+import { loadCalculationHistory } from "@/lib/calculationHistoryStorage"
+import { latestCollectRow, pipeRangeLabel } from "@/lib/collectInformationRange"
+import { DATA_NOT_FOUND_LABEL } from "@/lib/dataNotFound"
+import { getOrganizationStorageId } from "@/lib/organizationBaseYearStorage"
+import {
+  barChartValues,
+  buildEmissionTableRows,
+  carbonIntensityTPerKwh,
+  resolveActivityDivisorKwh,
+  type EmissionTableRow,
+} from "@/lib/resultsEmissionModel"
 import { useAuthStore } from "@/store/useAuthStore"
+
+ChartJS.register(BarElement, CategoryScale, LinearScale, Title, ChartTooltip, Legend)
+
+const LIVE_SELECT_VALUE = "__live__"
 
 function formatThNumber(n: number, fraction = 1): string {
   return new Intl.NumberFormat("th-TH", {
@@ -29,39 +85,288 @@ function formatThDateTime(iso: string): string {
   }
 }
 
-function scopeShare(scope: number, total: number): string {
-  if (!total) return "0%"
-  return `${formatThNumber((scope / total) * 100, 1)}%`
+function formatIntensity(n: number): string {
+  return new Intl.NumberFormat("th-TH", { maximumFractionDigits: 9, minimumFractionDigits: 2 }).format(n)
 }
 
 export function ResultsPage() {
   const { message } = App.useApp()
   const authUser = useAuthStore((s) => s.user)
-  const orgId = useMemo(() => getOrganizationStorageId(authUser), [authUser])
+  const orgIdStr = useMemo(() => getOrganizationStorageId(authUser), [authUser])
+  const orgIdNum = useMemo(() => {
+    const id = authUser?.organization_id
+    if (id === undefined || id === null) return null
+    const n = typeof id === "number" ? id : Number.parseInt(String(id), 10)
+    return Number.isFinite(n) ? n : null
+  }, [authUser?.organization_id])
 
-  const [results, setResults] = useState<CalculationResultsSnapshot | null>(() =>
-    typeof window !== "undefined" ? loadCalculationResultsSnapshot(orgId) : null,
-  )
-  const [testExporting, setTestExporting] = useState(false)
+  const [liveSnap, setLiveSnap] = useState<CalculationResultsSnapshot | null>(null)
+  const [historyTick, setHistoryTick] = useState(0)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [baseYearSummary, setBaseYearSummary] = useState<string | null>(null)
+  const [selectedKey, setSelectedKey] = useState<string>(LIVE_SELECT_VALUE)
+  const [latestCollect, setLatestCollect] = useState<CollectInformationRead | null>(null)
+  const [savedBundle, setSavedBundle] = useState<AnnualReportingBundleRead | null>(null)
+  const [calculating, setCalculating] = useState(false)
+  /** เน้นแท่งกราฟหลังคลิก (react-chartjs-2 / Chart.js) */
+  const [barFocusIndex, setBarFocusIndex] = useState<number | null>(null)
 
-  const refreshResults = useCallback(() => {
-    setResults(loadCalculationResultsSnapshot(orgId))
-  }, [orgId])
+  const historyList = useMemo(() => {
+    void historyTick
+    return loadCalculationHistory(orgIdStr)
+  }, [orgIdStr, historyTick])
+
+  const refreshFromApi = useCallback(async () => {
+    if (orgIdNum == null) {
+      setLoading(false)
+      setLiveSnap(null)
+      setLoadError(null)
+      setBaseYearSummary(null)
+      setLatestCollect(null)
+      setSavedBundle(null)
+      return
+    }
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const [calcRes, collects, bundleRes] = await Promise.all([
+        getCalculationLatest(orgIdNum).catch((e) => {
+          if (e instanceof ApiError && e.status === 404) return null
+          throw e
+        }),
+        listCollectInformation(orgIdNum),
+        getAnnualReportBundleLatest(orgIdNum).catch((e) => {
+          if (e instanceof ApiError && e.status === 404) return null
+          throw e
+        }),
+      ])
+      const latest = latestCollectRow(collects)
+      setLatestCollect(latest)
+      const byRange = latest ? pipeRangeLabel(latest.base_year) : null
+      const prod =
+        latest != null
+          ? `ผลผลิตช่วงรายงาน ${latest.productivity} ${latest.unit_productivity} · ผลผลิตปีฐาน ${latest.base_year_output} ${latest.unit_base_output}`
+          : null
+      if (byRange && prod) setBaseYearSummary(`${byRange} · ${prod}`)
+      else if (byRange) setBaseYearSummary(byRange)
+      else if (prod) setBaseYearSummary(prod)
+      else setBaseYearSummary(null)
+
+      setLiveSnap(calcRes ? calculationSnapshotFromApi(calcRes) : null)
+      setSavedBundle(bundleRes)
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "โหลดข้อมูลไม่สำเร็จ"
+      setLoadError(msg)
+      setLiveSnap(null)
+      setBaseYearSummary(null)
+      setLatestCollect(null)
+      setSavedBundle(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [orgIdNum])
 
   useEffect(() => {
-    refreshResults()
-  }, [refreshResults])
+    void refreshFromApi()
+  }, [refreshFromApi])
 
   useEffect(() => {
     const onCalc = (e: Event) => {
       const detail = (e as CustomEvent<{ orgId?: string }>).detail
-      if (!detail?.orgId || detail.orgId === orgId) refreshResults()
+      if (!detail?.orgId || detail.orgId === orgIdStr) {
+        setHistoryTick((t) => t + 1)
+        void refreshFromApi()
+      }
     }
     window.addEventListener(CONTROL_Z_CALC_RESULTS_UPDATED, onCalc as EventListener)
     return () => window.removeEventListener(CONTROL_Z_CALC_RESULTS_UPDATED, onCalc as EventListener)
-  }, [orgId, refreshResults])
+  }, [orgIdStr, refreshFromApi])
 
-  const baseSnap = useMemo(() => getLatestBaseYearSnapshot(orgId), [orgId])
+  useEffect(() => {
+    if (selectedKey === LIVE_SELECT_VALUE && !liveSnap && historyList.length > 0) {
+      setSelectedKey(historyList[0]!.ranAt)
+    }
+  }, [liveSnap, historyList, selectedKey])
+
+  const activeSnap = useMemo(() => {
+    if (selectedKey === LIVE_SELECT_VALUE && liveSnap) return liveSnap
+    if (selectedKey !== LIVE_SELECT_VALUE) {
+      return historyList.find((h) => h.ranAt === selectedKey) ?? null
+    }
+    return liveSnap ?? historyList[0] ?? null
+  }, [selectedKey, liveSnap, historyList])
+
+  useEffect(() => {
+    setBarFocusIndex(null)
+  }, [activeSnap?.ranAt])
+
+  const kwhDivisor = useMemo(() => resolveActivityDivisorKwh(latestCollect), [latestCollect])
+
+  const intensity12 = useMemo(() => {
+    if (!activeSnap || kwhDivisor == null) return null
+    const t = activeSnap.scope1Tco2e + activeSnap.scope2Tco2e
+    return carbonIntensityTPerKwh(t, kwhDivisor)
+  }, [activeSnap, kwhDivisor])
+
+  const intensity123 = useMemo(() => {
+    if (!activeSnap || kwhDivisor == null) return null
+    const t = activeSnap.scope1Tco2e + activeSnap.scope2Tco2e + activeSnap.scope3Tco2e
+    return carbonIntensityTPerKwh(t, kwhDivisor)
+  }, [activeSnap, kwhDivisor])
+
+  const tableRows = useMemo(() => (activeSnap ? buildEmissionTableRows(activeSnap) : []), [activeSnap])
+
+  const chartPayload = useMemo(() => (activeSnap ? barChartValues(activeSnap) : { labels: [], values: [] }), [activeSnap])
+
+  const barPalette = useMemo(() => ["#0f766e", "#14b8a6", "#5eead4", "#94a3b8"] as const, [])
+  const barDimmed = useMemo(
+    () => ["rgba(15, 118, 110, 0.38)", "rgba(20, 184, 166, 0.38)", "rgba(94, 234, 212, 0.42)", "rgba(148, 163, 184, 0.45)"] as const,
+    [],
+  )
+
+  const barData = useMemo(() => {
+    const bg = chartPayload.values.map((_, i) => {
+      if (barFocusIndex === null) return barPalette[i] ?? "#94a3b8"
+      return i === barFocusIndex ? (barPalette[i] ?? "#0f766e") : (barDimmed[i] ?? "rgba(148,163,184,0.4)")
+    })
+    const borderW = chartPayload.values.map((_, i) => (barFocusIndex === i ? 2 : 0))
+    const borderC = chartPayload.values.map((_, i) => (barFocusIndex === i ? "#0f172a" : "transparent"))
+    return {
+      labels: chartPayload.labels,
+      datasets: [
+        {
+          label: "การปล่อย (ton CO₂-eq)",
+          data: chartPayload.values,
+          backgroundColor: bg,
+          hoverBackgroundColor: chartPayload.values.map((_, i) => barPalette[i] ?? "#0d9488"),
+          borderColor: borderC,
+          borderWidth: borderW,
+          borderRadius: 8,
+          borderSkipped: false,
+        },
+      ],
+    }
+  }, [chartPayload, barFocusIndex, barPalette, barDimmed])
+
+  const barOptions = useMemo<ChartOptions<"bar">>(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      animation: { duration: 520, easing: "easeOutQuart" },
+      transitions: { active: { animation: { duration: 260 } } },
+      onHover(_event, elements, chart) {
+        const canvas = chart?.canvas
+        if (canvas) canvas.style.cursor = elements.length ? "pointer" : "default"
+      },
+      onClick(_event, elements) {
+        if (!elements.length) {
+          setBarFocusIndex(null)
+          return
+        }
+        const i = elements[0].index
+        if (typeof i !== "number") return
+        setBarFocusIndex((prev) => (prev === i ? null : i))
+      },
+      plugins: {
+        legend: {
+          display: chartPayload.values.length > 0,
+          position: "bottom",
+          labels: { usePointStyle: true, padding: 14, font: { size: 12 } },
+        },
+        title: {
+          display: true,
+          text: "การปล่อยตาม Scope",
+          font: { size: 13, weight: "bold" },
+          padding: { bottom: 8 },
+          color: "#475569",
+        },
+        tooltip: {
+          intersect: false,
+          axis: "x",
+          backgroundColor: "rgba(15, 23, 42, 0.92)",
+          titleFont: { size: 13, weight: "bold" },
+          bodyFont: { size: 13 },
+          padding: 12,
+          cornerRadius: 8,
+          callbacks: {
+            title: (items) => (items[0] ? String(items[0].label) : ""),
+            label: (ctx) => {
+              const v = ctx.parsed.y
+              return ` ปริมาณ: ${formatThNumber(typeof v === "number" ? v : 0, 2)} ton CO₂-eq`
+            },
+            afterLabel: () => "ลากชี้แท่งอื่นเพื่อเปรียบเทียบ",
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true } },
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: "ton CO₂-eq" },
+          grid: { color: "rgba(148, 163, 184, 0.18)" },
+        },
+      },
+    }),
+    [chartPayload],
+  )
+
+  const selectOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = []
+    if (liveSnap) {
+      opts.push({
+        value: LIVE_SELECT_VALUE,
+        label: `ล่าสุดจากระบบ · ${formatThDateTime(liveSnap.ranAt)}`,
+      })
+    }
+    for (const h of historyList) {
+      opts.push({
+        value: h.ranAt,
+        label: `ประวัติ · ${formatThDateTime(h.ranAt)}${h.source === "mock" ? " (จำลอง)" : ""}`,
+      })
+    }
+    return opts
+  }, [liveSnap, historyList])
+
+  const columns: ColumnsType<EmissionTableRow> = useMemo(
+    () => [
+      {
+        title: "ขอบเขต",
+        dataIndex: "category",
+        key: "category",
+        ellipsis: true,
+        render: (t: string, row) => <span className={row.rowClassName}>{t}</span>,
+      },
+      {
+        title: (
+          <Tooltip title="การปล่อยก๊าซเรือนกระจกขององค์กร (ton CO₂-eq)">การปล่อย (ton CO₂-eq)</Tooltip>
+        ),
+        dataIndex: "emissionsT",
+        key: "emissionsT",
+        align: "right",
+        width: 120,
+        render: (v: number) => formatThNumber(v, 2),
+      },
+      {
+        title: <Tooltip title="สัดส่วนเมื่อเทียบขอบเขต 1 และ 2">% เทียบ 1+2</Tooltip>,
+        dataIndex: "pctScope12",
+        key: "pctScope12",
+        align: "right",
+        width: 100,
+        render: (v: string | null) => (v == null ? "—" : v),
+      },
+      {
+        title: <Tooltip title="สัดส่วนเมื่อเทียบขอบเขต 1, 2 และ 3">% เทียบ 1+2+3</Tooltip>,
+        dataIndex: "pctScope123",
+        key: "pctScope123",
+        align: "right",
+        width: 110,
+        render: (v: string | null) => (v == null ? "—" : v),
+      },
+    ],
+    [],
+  )
 
   const preparerName = useMemo(() => {
     if (!authUser) return "—"
@@ -69,229 +374,311 @@ export function ResultsPage() {
     return parts.length ? parts.join(" ") : authUser.email || "—"
   }, [authUser])
 
-  const breakdownRows = useMemo(() => {
-    if (!results) return []
-    const t = results.totalTco2e
-    return [
-      { key: "1", scope: "Scope 1", value: results.scope1Tco2e, share: scopeShare(results.scope1Tco2e, t) },
-      { key: "2", scope: "Scope 2", value: results.scope2Tco2e, share: scopeShare(results.scope2Tco2e, t) },
-      { key: "3", scope: "Scope 3", value: results.scope3Tco2e, share: scopeShare(results.scope3Tco2e, t) },
-    ]
-  }, [results])
-
   const vsBaseHelper = useMemo(() => {
-    if (!results) return "—"
-    if (results.vsBaseYearPercent == null) {
-      return baseSnap ? "รอโมเดลเปรียบเทียบเต็มรูปแบบ" : "บันทึกช่วงปีฐานในขั้นข้อมูลทั่วไปเพื่อใช้เปรียบเทียบ"
+    if (!activeSnap) return "—"
+    if (activeSnap.vsBaseYearPercent == null) {
+      return baseYearSummary ? "รอโมเดลเปรียบเทียบเต็มรูปแบบ" : "บันทึกข้อมูลทั่วไป (ปีฐาน) ในระบบเพื่อใช้เปรียบเทียบ"
     }
-    const v = results.vsBaseYearPercent
+    const v = activeSnap.vsBaseYearPercent
     return v <= 0 ? `${formatThNumber(v, 1)}% (ลดลงจากปีฐาน)` : `+${formatThNumber(v, 1)}% (สูงกว่าปีฐาน)`
-  }, [results, baseSnap])
+  }, [activeSnap, baseYearSummary])
 
-  const baseYearDescription = useMemo(() => {
-    if (!baseSnap) {
-      return "ยังไม่มี snapshot ปีฐาน — กรอกในขั้นข้อมูลทั่วไปแล้วบันทึก"
+  const calculationReadiness = useMemo(() => {
+    if (!savedBundle) {
+      return {
+        canCalculate: false,
+        reasons: ["ยังไม่มีข้อมูลที่บันทึก — กรอกและกดบันทึกที่หน้ากรอกข้อมูล"],
+      }
     }
-    let s = formatDateRangeTh(baseSnap.dat_start, baseSnap.dat_end)
-    if (baseSnap.vx_create != null && baseSnap.vx_create !== "") {
-      s += ` · ผลผลิตปีฐาน ${baseSnap.vx_create}`
-      if (baseSnap.unityLabel) s += ` ${baseSnap.unityLabel}`
-      else if (baseSnap.unity) s += ` (${baseSnap.unity})`
-    }
-    return s
-  }, [baseSnap])
+    return evaluateCalculationReadinessFromBundle(savedBundle)
+  }, [savedBundle])
 
-  const onTestExportXlsx = useCallback(async () => {
+  const runCalculation = useCallback(async () => {
+    if (orgIdNum == null || savedBundle == null) {
+      message.warning("ยังไม่มีข้อมูลรายปีที่บันทึก")
+      return
+    }
+    if (!calculationReadiness.canCalculate) {
+      message.warning(
+        calculationReadiness.reasons.length > 0
+          ? `ยังคำนวณไม่ได้: ${calculationReadiness.reasons.join(" · ")}`
+          : "ข้อมูลยังไม่ครบสำหรับการคำนวณรายปี",
+        8,
+      )
+      return
+    }
+    setCalculating(true)
     try {
-      setTestExporting(true)
-      const { exportResultsPageTestXlsx } = await import("@/lib/resultsTestExcelExport")
-      await exportResultsPageTestXlsx({
-        preparerName,
-        organizationIdDisplay:
-          authUser?.organization_id === undefined || authUser?.organization_id === null
-            ? "—"
-            : String(authUser.organization_id),
-        baseYearDescription,
-        results,
-        ranAtDisplay: results ? formatThDateTime(results.ranAt) : null,
+      const calcRes = await postCalculationRun(orgIdNum, {
+        annual_report_bundle: savedBundle as unknown as Record<string, unknown>,
       })
-      message.success("ส่งออกไฟล์ทดสอบ .xlsx แล้ว")
+      appendCalculationHistory(orgIdStr, calculationSnapshotFromApi(calcRes))
+      notifyCalculationResultsUpdated(orgIdStr)
+      message.success("คำนวณคาร์บอนฟุตพรินต์รายปีเสร็จแล้ว")
+      await refreshFromApi()
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "ส่งออกไม่สำเร็จ"
-      message.error(msg)
+      message.error(e instanceof ApiError ? e.message : "คำนวณไม่สำเร็จ")
     } finally {
-      setTestExporting(false)
+      setCalculating(false)
     }
-  }, [authUser?.organization_id, baseYearDescription, message, preparerName, results])
+  }, [orgIdNum, orgIdStr, savedBundle, calculationReadiness, message, refreshFromApi])
+
+  const hasAnyView = Boolean(liveSnap || historyList.length > 0)
+
+  const sectionCardClass = "overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm"
+  const sectionBodyPadding = { padding: "16px 20px" } as const
 
   return (
-    <div className="w-full min-w-0 space-y-6 pb-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="w-full min-w-0 pb-8">
+      <div className="flex flex-col gap-6">
         <PageHeader
-          title="ผลการคำนวณ"
-          description="สรุปการปล่อยก๊าซเรือนกระจก (CO₂e) จากรอบคำนวณล่าสุด — อ้างอิงข้อมูลผู้ใช้และปีฐาน (ข้อมูลในเครื่องต่อองค์กรจนกว่าจะเชื่อม API)"
+          title="การคำนวณ"
+          description="ใช้ข้อมูลรายปีที่บันทึกจากหน้ากรอกข้อมูล — กดคำนวณเมื่อข้อมูลครบ แล้วดูสรุป กราฟ และตารางด้านล่าง"
+          actions={
+            <>
+              <PageHeaderButton
+                tone="primary"
+                icon={<CalculatorOutlined />}
+                loading={calculating}
+                disabled={!calculationReadiness.canCalculate || orgIdNum == null}
+                onClick={() => void runCalculation()}
+              >
+                คำนวณคาร์บอนฟุตพรินต์
+              </PageHeaderButton>
+              <PageHeaderButton
+                icon={<ReloadOutlined />}
+                onClick={() => void refreshFromApi()}
+                disabled={loading || orgIdNum == null}
+              >
+                รีเฟรช
+              </PageHeaderButton>
+            </>
+          }
         />
-        <Button
-          type="default"
-          size="large"
-          icon={<FileExcelOutlined />}
-          loading={testExporting}
-          onClick={onTestExportXlsx}
-          className="shrink-0"
-        >
-          ทดสอบส่งออก .xlsx
-        </Button>
-      </div>
 
-      <div className="space-y-6">
-        <Card className="border-slate-200/90 shadow-sm ring-1 ring-slate-100/80" title="ข้อมูลอ้างอิงจากระบบ">
-          <Descriptions column={{ xs: 1, sm: 1, md: 2 }} size="small" bordered>
-            <Descriptions.Item label="ผู้จัดทำ / บัญชี">{preparerName}</Descriptions.Item>
-            <Descriptions.Item label="องค์กร (รหัส)">{authUser?.organization_id ?? "—"}</Descriptions.Item>
-            <Descriptions.Item label="ช่วงปีฐาน (ล่าสุด)" span={2}>
-              {baseSnap ? (
-                <span>
-                  {formatDateRangeTh(baseSnap.dat_start, baseSnap.dat_end)}
-                  {baseSnap.vx_create != null && baseSnap.vx_create !== "" ? (
-                    <span className="text-slate-600">
-                      {" "}
-                      · ผลผลิตปีฐาน {baseSnap.vx_create}
-                      {baseSnap.unityLabel ? ` ${baseSnap.unityLabel}` : baseSnap.unity ? ` (${baseSnap.unity})` : ""}
-                    </span>
-                  ) : null}
-                </span>
-              ) : (
-                <Typography.Text type="secondary">
-                  ยังไม่มี snapshot ปีฐาน — กรอกในขั้น «ข้อมูลทั่วไป» แล้วบันทึกร่างหรือไปขั้นถัดไป
-                </Typography.Text>
-              )}
-            </Descriptions.Item>
-          </Descriptions>
-        </Card>
+        {loadError ? <Alert type="error" showIcon message={loadError} className="rounded-xl" /> : null}
 
-        {!results ? (
-          <Card>
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                <Space direction="vertical" size="small" className="max-w-md">
-                  <Typography.Text strong>ยังไม่มีผลการคำนวณในระบบ</Typography.Text>
-                  <Typography.Text type="secondary">
-                    หลังกรอกข้อมูลครบทุกขั้น ให้กด «คำนวณคาร์บอนฟุตพรินต์» ที่หน้ากรอกข้อมูล — ระบบจะบันทึกผลรอบล่าสุดไว้ที่นี่
+        {!loading && savedBundle ? (
+          <Alert
+            type={calculationReadiness.canCalculate ? "info" : "warning"}
+            showIcon
+            className="rounded-xl"
+            message={`ข้อมูลรายปี ${savedBundle.reportingYear} (${savedBundle.periodStart} – ${savedBundle.periodEnd})`}
+            description={
+              calculationReadiness.canCalculate
+                ? "ข้อมูลพร้อมคำนวณ — กดปุ่ม «คำนวณคาร์บอนฟุตพรินต์» ด้านบน"
+                : calculationReadiness.reasons.join(" · ")
+            }
+          />
+        ) : null}
+
+        <Spin spinning={loading}>
+          {!hasAnyView && !loading ? (
+            <Card className={sectionCardClass}>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <Space direction="vertical" size="small" className="max-w-md">
+                    <Typography.Text strong>{DATA_NOT_FOUND_LABEL}</Typography.Text>
+                    <Typography.Text className="text-slate-600">
+                      ยังไม่มีผลการคำนวณ — บันทึกข้อมูลรายปีแล้วกดคำนวณที่ด้านบน
+                    </Typography.Text>
+                  </Space>
+                }
+              >
+                <Link to="/app/data-input">
+                  <Button size="large">ไปกรอกข้อมูล</Button>
+                </Link>
+              </Empty>
+            </Card>
+          ) : null}
+
+          {hasAnyView && activeSnap ? (
+            <div className="flex flex-col gap-4">
+              <Card className={sectionCardClass} styles={{ body: { padding: "12px 16px 14px" } }}>
+                <div className="rounded-lg border border-teal-100/80 bg-gradient-to-b from-teal-50/35 via-white to-slate-50/25 px-3 py-3 sm:px-4 sm:py-3.5">
+                  <Row gutter={[16, 12]} align="middle">
+                    <Col xs={24} lg={13}>
+                      <Typography.Text className="text-[11px] font-medium text-teal-800">ผู้จัดทำ</Typography.Text>
+                      <div className="mt-0.5 text-base font-semibold leading-snug text-slate-900 sm:text-lg">
+                        {preparerName}
+                      </div>
+                      <Typography.Text className="mt-1 block text-xs text-slate-600">
+                        องค์กร{" "}
+                        <span className="font-medium text-slate-800">
+                          {authUser?.organization_id === undefined || authUser?.organization_id === null
+                            ? "—"
+                            : String(authUser.organization_id)}
+                        </span>
+                      </Typography.Text>
+                    </Col>
+                    <Col xs={24} lg={11}>
+                      <Typography.Text className="mb-1 block text-[11px] font-medium text-slate-600">
+                        เวลาและชุดผล
+                      </Typography.Text>
+                      <Select
+                        aria-label="เลือกชุดผลหรือประวัติ"
+                        className="w-full"
+                        value={selectOptions.some((o) => o.value === selectedKey) ? selectedKey : selectOptions[0]?.value}
+                        options={selectOptions}
+                        onChange={(v) => setSelectedKey(v)}
+                        placeholder="เลือกประวัติหรือผลล่าสุด"
+                      />
+                    </Col>
+                  </Row>
+                </div>
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <Typography.Text className="mb-0.5 block text-[11px] font-medium text-slate-600">
+                    ช่วงรายงาน / ปีฐาน
                   </Typography.Text>
-                </Space>
-              }
-            >
-              <Link to="/app/data-input">
+                  <Typography.Paragraph className="!mb-0 !mt-0 !text-xs !leading-relaxed !text-slate-700 sm:!text-sm">
+                    {loading ? "กำลังโหลดข้อมูลอ้างอิง…" : baseYearSummary ? baseYearSummary : DATA_NOT_FOUND_LABEL}
+                  </Typography.Paragraph>
+                </div>
+              </Card>
+
+              <Card className={sectionCardClass} styles={{ body: sectionBodyPadding }}>
+                <Row gutter={[12, 12]}>
+                  <Col xs={24} sm={8}>
+                    <div className="rounded-xl border border-teal-100/80 bg-teal-50/50 px-3 py-3">
+                      <Statistic
+                        title={<span className="text-slate-600">รวม Scope 1+2</span>}
+                        value={activeSnap.scope1Tco2e + activeSnap.scope2Tco2e}
+                        precision={2}
+                        suffix={<span className="text-sm font-normal text-slate-500">tCO₂e</span>}
+                        valueStyle={{ color: "#0f766e", fontSize: 20 }}
+                      />
+                    </div>
+                  </Col>
+                  <Col xs={24} sm={8}>
+                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 px-3 py-3">
+                      <Statistic
+                        title={<span className="text-slate-600">รวม Scope 1+2+3</span>}
+                        value={activeSnap.scope1Tco2e + activeSnap.scope2Tco2e + activeSnap.scope3Tco2e}
+                        precision={2}
+                        suffix={<span className="text-sm font-normal text-slate-500">tCO₂e</span>}
+                        valueStyle={{ fontSize: 20 }}
+                      />
+                    </div>
+                  </Col>
+                  <Col xs={24} sm={8}>
+                    <div className="rounded-xl border border-sky-100/80 bg-sky-50/50 px-3 py-3">
+                      <Statistic
+                        title={<span className="text-slate-600">เทียบปีฐาน</span>}
+                        value={activeSnap.vsBaseYearPercent != null ? activeSnap.vsBaseYearPercent : "—"}
+                        suffix={activeSnap.vsBaseYearPercent != null ? "%" : ""}
+                        valueStyle={{ fontSize: 20 }}
+                      />
+                      <Typography.Text type="secondary" className="mt-1 line-clamp-2 block text-[11px] leading-snug">
+                        {vsBaseHelper}
+                      </Typography.Text>
+                    </div>
+                  </Col>
+                </Row>
+              </Card>
+
+              <Card className={sectionCardClass} styles={{ body: { padding: "12px 16px 16px" } }}>
+                <div className="relative mx-auto h-[min(360px,50vh)] w-full max-w-5xl min-h-[240px]">
+                  {chartPayload.values.length > 0 ? <Bar options={barOptions} data={barData} /> : null}
+                </div>
+              </Card>
+
+              <Card className={sectionCardClass} styles={{ body: sectionBodyPadding }}>
+                <div className="mb-3">
+                  <Typography.Text className="text-sm font-semibold text-slate-800">Carbon intensity</Typography.Text>
+                  <Typography.Paragraph className="!mb-0 !mt-0.5 !text-sm !leading-relaxed !text-slate-600">
+                    ความเข้มข้นของการปล่อยต่อหน่วยผลผลิตช่วงรายงาน — หน่วย{" "}
+                    <Typography.Text code className="!text-[12px]">
+                      ton CO₂-eq / kWh
+                    </Typography.Text>
+                  </Typography.Paragraph>
+                </div>
+                <Row gutter={[12, 12]}>
+                  <Col xs={24} sm={12}>
+                    <div className="h-full rounded-xl border border-teal-100/90 bg-slate-50/30 px-4 py-3 shadow-sm ring-1 ring-teal-900/5">
+                      <Typography.Text type="secondary" className="mb-0.5 block text-xs">
+                        Scope 1 + 2
+                      </Typography.Text>
+                      <Statistic
+                        value={intensity12 != null ? formatIntensity(intensity12) : "—"}
+                        suffix={
+                          intensity12 != null ? (
+                            <span className="text-xs font-normal text-slate-500">ton CO₂-eq / kWh</span>
+                          ) : undefined
+                        }
+                        valueStyle={{
+                          fontSize: 18,
+                          fontWeight: 600,
+                          color: intensity12 != null ? "#0f766e" : "#94a3b8",
+                        }}
+                      />
+                      <Typography.Text type="secondary" className="mt-1.5 block text-[11px] leading-snug">
+                        ผลรวมการปล่อย Scope 1 และ 2 ÷ ผลผลิตช่วงรายงาน
+                      </Typography.Text>
+                    </div>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <div className="h-full rounded-xl border border-slate-200/90 bg-slate-50/30 px-4 py-3 shadow-sm">
+                      <Typography.Text type="secondary" className="mb-0.5 block text-xs">
+                        Scope 1 + 2 + 3
+                      </Typography.Text>
+                      <Statistic
+                        value={intensity123 != null ? formatIntensity(intensity123) : "—"}
+                        suffix={
+                          intensity123 != null ? (
+                            <span className="text-xs font-normal text-slate-500">ton CO₂-eq / kWh</span>
+                          ) : undefined
+                        }
+                        valueStyle={{
+                          fontSize: 18,
+                          fontWeight: 600,
+                          color: intensity123 != null ? "#134e4a" : "#94a3b8",
+                        }}
+                      />
+                      <Typography.Text type="secondary" className="mt-1.5 block text-[11px] leading-snug">
+                        ผลรวมการปล่อย Scope 1–3 ÷ ผลผลิตช่วงรายงาน
+                      </Typography.Text>
+                    </div>
+                  </Col>
+                </Row>
+              </Card>
+
+              <Card className={sectionCardClass} styles={{ body: sectionBodyPadding }}>
+                <Typography.Title level={5} className="!mb-3 !mt-0 !text-slate-800">
+                  สรุปการปล่อยและสัดส่วน
+                </Typography.Title>
+                <Table<EmissionTableRow>
+                  pagination={false}
+                  size="small"
+                  rowKey="key"
+                  dataSource={tableRows}
+                  columns={columns}
+                  tableLayout="fixed"
+                  className="results-emission-table"
+                  locale={{ emptyText: "ไม่มีข้อมูล" }}
+                />
+              </Card>
+            </div>
+          ) : null}
+        </Spin>
+
+        <Card className={`${sectionCardClass} mt-6 border-slate-200/90`} styles={{ body: { padding: "16px 20px" } }}>
+          <Row gutter={[20, 20]} align="middle">
+            <Col xs={24} lg={17}>
+              <Typography.Text className="text-base leading-relaxed text-slate-700">
+                รายงานมาตรฐาน (Fr_xx) และการส่งออก — เปิดเมนูรายงานเพื่อเลือกแบบฟอร์มและดาวน์โหลดตามข้อมูลองค์กรที่ระบบใช้อยู่
+              </Typography.Text>
+            </Col>
+            <Col xs={24} lg={7} className="text-start lg:text-end">
+              <Link to="/app/reports">
                 <Button type="primary" size="large">
-                  ไปกรอกข้อมูล / คำนวณ
+                  ไปหน้ารายงานและส่งออก
                 </Button>
               </Link>
-            </Empty>
-          </Card>
-        ) : (
-          <>
-            {results.source === "mock" ? (
-              <Alert
-                type="info"
-                showIcon
-                message="ตัวเลขจำลองจากปุ่มคำนวณ"
-                description="โครงสร้างหน้านี้พร้อมรับผลจากเครื่องคำนวณหลังบ้าน — แทนที่ `saveMockCalculationResults` ด้วยการบันทึก payload จาก API ได้โดยตรง"
-              />
-            ) : null}
-
-            <Typography.Text type="secondary" className="block text-sm">
-              คำนวณล่าสุด: <strong className="text-slate-800">{formatThDateTime(results.ranAt)}</strong>
-            </Typography.Text>
-
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={8}>
-                <MetricCard
-                  label="การปล่อยรวม (รอบล่าสุด)"
-                  value={`${formatThNumber(results.totalTco2e, 0)} tCO₂e`}
-                  helper="รวม Scope 1–3 จากชุดข้อมูลที่ส่งคำนวณ"
-                  trend="neutral"
-                />
-              </Col>
-              <Col xs={24} md={8}>
-                <MetricCard
-                  label="เทียบปีฐาน"
-                  value={results.vsBaseYearPercent != null ? `${formatThNumber(results.vsBaseYearPercent, 1)}%` : "—"}
-                  helper={vsBaseHelper}
-                  trend={
-                    results.vsBaseYearPercent == null
-                      ? "neutral"
-                      : results.vsBaseYearPercent <= 0
-                        ? "down"
-                        : "up"
-                  }
-                />
-              </Col>
-              <Col xs={24} md={8}>
-                <Card>
-                  <Typography.Text type="secondary" className="text-xs">
-                    สัดส่วนตาม Scope (รอบล่าสุด)
-                  </Typography.Text>
-                  <Space direction="vertical" className="mt-3 w-full" size="middle">
-                    {breakdownRows.map((r) => (
-                      <div key={r.key}>
-                        <div className="mb-1 flex justify-between text-sm">
-                          <span>{r.scope}</span>
-                          <span className="font-semibold">{r.share}</span>
-                        </div>
-                        <Progress
-                          percent={Math.round((r.value / results.totalTco2e) * 1000) / 10}
-                          size="small"
-                          showInfo={false}
-                          strokeColor={{ from: "#059669", to: "#10b981" }}
-                        />
-                      </div>
-                    ))}
-                  </Space>
-                </Card>
-              </Col>
-            </Row>
-
-            <Card title="แยกตาม Scope" extra={<Tag color="blue">tCO₂e</Tag>}>
-              <Table
-                pagination={false}
-                size="middle"
-                dataSource={breakdownRows}
-                columns={[
-                  { title: "Scope", dataIndex: "scope", width: 120 },
-                  {
-                    title: "การปล่อย (tCO₂e)",
-                    dataIndex: "value",
-                    align: "right" as const,
-                    render: (v: number) => formatThNumber(v, 1),
-                  },
-                  { title: "สัดส่วน", dataIndex: "share", width: 100 },
-                ]}
-              />
-            </Card>
-          </>
-        )}
+            </Col>
+          </Row>
+        </Card>
       </div>
-
-      <Card size="small" className="bg-slate-50/80">
-        <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} md={16}>
-            <Typography.Text type="secondary" className="text-sm">
-              ดูรายงานมาตรฐาน (Fr_xx) และการส่งออก — เมนูรายงาน
-            </Typography.Text>
-          </Col>
-          <Col xs={24} md={8} className="text-start md:text-end">
-            <Space wrap>
-              <Link to="/app/data-input">
-                <Button>แก้ไขข้อมูลกรอก</Button>
-              </Link>
-              <Link to="/app/reports">
-                <Button type="primary">เปิดรายงาน</Button>
-              </Link>
-            </Space>
-          </Col>
-        </Row>
-      </Card>
     </div>
   )
 }

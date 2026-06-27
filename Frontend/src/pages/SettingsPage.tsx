@@ -9,6 +9,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons"
 import {
+  Alert,
   App,
   Button,
   Col,
@@ -21,13 +22,19 @@ import {
   Typography,
 } from "antd"
 import type { ReactNode } from "react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Link, useLocation } from "react-router"
+import { CreateInput, type Address as ThaiAddress } from "thai-address-autocomplete-react"
 import { PageHeader } from "@/components/common/PageHeader"
+import { ApiError } from "@/lib/api/http"
+import { getOrganization, patchMe, postMeAvatar } from "@/lib/api/service"
+import type { AuthTokenResponse } from "@/lib/authApiTypes"
+import { mapAuthUserToProfile } from "@/lib/authApiTypes"
 import {
   ProfilePhotoField,
   type ProfilePhotoFieldHandle,
 } from "@/components/settings/ProfilePhotoField"
-import type { UserProfile } from "@/store/useAuthStore"
+import { isUserProfileComplete } from "@/lib/userProfileComplete"
 import { useAuthStore } from "@/store/useAuthStore"
 
 const PREFIX_OPTIONS = [
@@ -39,11 +46,7 @@ const PREFIX_OPTIONS = [
   { value: "อื่น ๆ", label: "อื่น ๆ" },
 ]
 
-const ORGANIZATION_OPTIONS = [
-  { value: "org-1", label: "Global Carbon Corp" },
-  { value: "org-2", label: "องค์กรตัวอย่าง จำกัด" },
-  { value: "org-3", label: "Green Supply Co., Ltd." },
-]
+const ThaiAddressInput = CreateInput()
 
 /** หัวย่อยภายในการ์ด (ไม่สร้างการ์ดซ้อน) */
 function SubsectionTitle({
@@ -112,10 +115,30 @@ function SectionBlock({
 
 export function SettingsPage() {
   const { message } = App.useApp()
+  const location = useLocation()
   const user = useAuthStore((s) => s.user)
-  const updateUserProfile = useAuthStore((s) => s.updateUserProfile)
+  const role = useAuthStore((s) => s.role)
+  const loginAs = useAuthStore((s) => s.loginAs)
+  const accessToken = useAuthStore((s) => s.accessToken)
   const [form] = Form.useForm()
   const profilePhotoRef = useRef<ProfilePhotoFieldHandle>(null)
+  const [organizationOptions, setOrganizationOptions] = useState<Array<{ value: number; label: string }>>([])
+  const [organizationsLoading, setOrganizationsLoading] = useState(false)
+  const subdistrictValue = (Form.useWatch("subdistrict", form) as string | undefined) ?? ""
+  const districtValue = (Form.useWatch("district", form) as string | undefined) ?? ""
+  const provinceValue = (Form.useWatch("province", form) as string | undefined) ?? ""
+  const postalCodeValue = (Form.useWatch("postal_code", form) as string | undefined) ?? ""
+  const profileIncomplete = Boolean(user && !isUserProfileComplete(user))
+  const redirectedForProfile = Boolean(location.state && typeof location.state === "object" && "profileIncomplete" in location.state)
+
+  const onThaiAddressSelect = (picked: ThaiAddress) => {
+    form.setFieldsValue({
+      subdistrict: picked.district ?? "",
+      district: picked.amphoe ?? "",
+      province: picked.province ?? "",
+      postal_code: picked.zipcode != null ? String(picked.zipcode) : "",
+    })
+  }
 
   useEffect(() => {
     if (!user) return
@@ -137,39 +160,83 @@ export function SettingsPage() {
     })
   }, [user, form])
 
+  useEffect(() => {
+    if (!user?.organization_id) {
+      setOrganizationOptions([])
+      setOrganizationsLoading(false)
+      return
+    }
+    let cancelled = false
+    setOrganizationsLoading(true)
+    ;(async () => {
+      try {
+        const id =
+          typeof user.organization_id === "number"
+            ? user.organization_id
+            : Number.parseInt(String(user.organization_id), 10)
+        if (!Number.isFinite(id)) {
+          if (!cancelled) setOrganizationOptions([])
+          return
+        }
+        const org = await getOrganization(id)
+        if (cancelled) return
+        setOrganizationOptions([
+          {
+            value: org.organization_id,
+            label: `${org.organization_name} (${org.name_of_agency})`,
+          },
+        ])
+      } catch {
+        if (!cancelled) setOrganizationOptions([])
+      } finally {
+        if (!cancelled) setOrganizationsLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [role, user?.organization_id])
+
   const onFinish = async (values: Record<string, unknown>) => {
-    if (!user) {
+    if (!user || !role) {
       message.warning("ไม่พบข้อมูลผู้ใช้")
       return
     }
 
-    const imageprofile = await profilePhotoRef.current?.getValueForSave()
-
-    const next: Partial<UserProfile> = {
-      prefix: values.prefix as string | undefined,
-      fname: (values.fname as string)?.trim() || user.fname,
-      lname: (values.lname as string)?.trim() || user.lname,
-      address: (values.address as string) || undefined,
-      subdistrict: (values.subdistrict as string) || undefined,
-      district: (values.district as string) || undefined,
-      province: (values.province as string) || undefined,
-      postal_code: (values.postal_code as string) || undefined,
-      phone: (values.phone as string) || undefined,
-      email: (values.email as string)?.trim() || user.email,
-      username: (values.username as string) || undefined,
-      organization_id: values.organization_id as string | number | undefined,
-      imageprofile,
-    }
-
-    updateUserProfile(next)
-    profilePhotoRef.current?.reset()
-
-    const pwd = values.password as string | undefined
-    if (pwd && pwd.length > 0) {
-      message.success("บันทึกโปรไฟล์แล้ว")
+    try {
+      let me = await patchMe({
+        prefix: values.prefix,
+        firstname: (values.fname as string)?.trim(),
+        lastname: (values.lname as string)?.trim(),
+        address: (values.address as string)?.trim(),
+        subdistrict: (values.subdistrict as string)?.trim(),
+        district: (values.district as string)?.trim(),
+        province: (values.province as string)?.trim(),
+        postal_code: (values.postal_code as string)?.trim(),
+        phone: (values.phone as string)?.trim(),
+        email: (values.email as string)?.trim(),
+      })
+      const pendingAvatar = profilePhotoRef.current?.getPendingAvatarFile()
+      if (pendingAvatar) {
+        me = await postMeAvatar(pendingAvatar)
+      }
+      const base = mapAuthUserToProfile(me as AuthTokenResponse["user"])
+      const orgFromForm = (values.organization_id as string | number | undefined) ?? base.organization_id
+      loginAs(
+        role,
+        {
+          ...base,
+          username: (values.username as string)?.trim() || base.username,
+          organization_id: role === "ADMIN" ? base.organization_id : orgFromForm,
+        },
+        accessToken,
+      )
+      profilePhotoRef.current?.reset()
       form.setFieldsValue({ password: undefined, confirm_password: undefined })
-    } else {
       message.success("บันทึกข้อมูลโปรไฟล์แล้ว")
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "บันทึกไม่สำเร็จ"
+      message.error(msg)
     }
   }
 
@@ -196,12 +263,24 @@ export function SettingsPage() {
 
   return (
     <div className="w-full min-w-0 pb-10">
-      <div className="mb-8">
+      <div className="flex flex-col gap-6">
         <PageHeader
           title="ตั้งค่าโปรไฟล์"
           description="แก้ไขข้อมูลโปรไฟล์ ที่อยู่ การติดต่อ และองค์กร"
         />
-      </div>
+
+      {profileIncomplete ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="กรุณากรอกข้อมูลส่วนตัวให้ครบก่อนใช้งานระบบ"
+          description={
+            redirectedForProfile
+              ? "คุณถูกนำมาที่หน้านี้โดยอัตโนมัติ — กรอกคำนำหน้า ชื่อ–นามสกุล ที่อยู่ และเบอร์โทรให้ครบ (รูปประจำตัวไม่บังคับ) แล้วกดบันทึก"
+              : "กรอกคำนำหน้า ชื่อ–นามสกุล ที่อยู่ และเบอร์โทรให้ครบ (รูปประจำตัวไม่บังคับ) แล้วกดบันทึก เพื่อใช้งานเมนูอื่น"
+          }
+        />
+      ) : null}
 
       <Form form={form} layout="vertical" requiredMark onFinish={onFinish} scrollToFirstError size="large">
         <div className="flex flex-col gap-6">
@@ -254,28 +333,68 @@ export function SettingsPage() {
               title="ที่อยู่"
               subtitle="ใช้สำหรับเอกสาร"
             />
-            <Form.Item name="address" label="ที่อยู่">
+            <Form.Item
+              name="address"
+              label="ที่อยู่"
+              rules={[{ required: true, message: "กรุณากรอกที่อยู่" }]}
+            >
               <Input.TextArea rows={3} placeholder="บ้านเลขที่ ถนน ซอย อาคาร" showCount maxLength={500} />
             </Form.Item>
             <Row gutter={[16, 0]}>
               <Col xs={24} sm={12} lg={6}>
-                <Form.Item name="subdistrict" label="ตำบล / แขวง">
-                  <Input placeholder="ตำบล" />
+                <Form.Item
+                  name="subdistrict"
+                  label="ตำบล / แขวง"
+                  rules={[{ required: true, message: "กรุณากรอกตำบล/แขวง" }]}
+                >
+                  <ThaiAddressInput.District
+                    value={subdistrictValue}
+                    onChange={(v: string) => form.setFieldValue("subdistrict", v)}
+                    onSelect={onThaiAddressSelect}
+                    autoCompleteProps={{ placeholder: "ตำบล / แขวง" }}
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12} lg={6}>
-                <Form.Item name="district" label="อำเภอ / เขต">
-                  <Input placeholder="อำเภอ" />
+                <Form.Item
+                  name="district"
+                  label="อำเภอ / เขต"
+                  rules={[{ required: true, message: "กรุณากรอกอำเภอ/เขต" }]}
+                >
+                  <ThaiAddressInput.Amphoe
+                    value={districtValue}
+                    onChange={(v: string) => form.setFieldValue("district", v)}
+                    onSelect={onThaiAddressSelect}
+                    autoCompleteProps={{ placeholder: "อำเภอ / เขต" }}
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12} lg={6}>
-                <Form.Item name="province" label="จังหวัด">
-                  <Input placeholder="จังหวัด" />
+                <Form.Item
+                  name="province"
+                  label="จังหวัด"
+                  rules={[{ required: true, message: "กรุณากรอกจังหวัด" }]}
+                >
+                  <ThaiAddressInput.Province
+                    value={provinceValue}
+                    onChange={(v: string) => form.setFieldValue("province", v)}
+                    onSelect={onThaiAddressSelect}
+                    autoCompleteProps={{ placeholder: "จังหวัด" }}
+                  />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12} lg={6}>
-                <Form.Item name="postal_code" label="รหัสไปรษณีย์">
-                  <Input placeholder="10110" maxLength={10} inputMode="numeric" />
+                <Form.Item
+                  name="postal_code"
+                  label="รหัสไปรษณีย์"
+                  rules={[{ required: true, message: "กรุณากรอกรหัสไปรษณีย์" }]}
+                >
+                  <ThaiAddressInput.Zipcode
+                    value={postalCodeValue}
+                    onChange={(v: string) => form.setFieldValue("postal_code", v)}
+                    onSelect={onThaiAddressSelect}
+                    autoCompleteProps={{ placeholder: "10110", maxLength: 5 }}
+                  />
                 </Form.Item>
               </Col>
             </Row>
@@ -318,24 +437,53 @@ export function SettingsPage() {
 
             <Divider className="!my-8 !border-slate-100" />
 
-            <SubsectionTitle
-              icon={<BankOutlined />}
-              title="องค์กร"
-              subtitle="เลือกองค์กรที่สังกัด"
-            />
-            <Row gutter={[16, 0]}>
-              <Col xs={24} md={16} lg={14}>
-                <Form.Item name="organization_id" label="องค์กร">
-                  <Select
-                    allowClear
-                    showSearch
-                    placeholder="ค้นหาหรือเลือกองค์กร"
-                    optionFilterProp="label"
-                    options={ORGANIZATION_OPTIONS}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
+            {role === "ADMIN" ? (
+              <>
+                <SubsectionTitle
+                  icon={<BankOutlined />}
+                  title="องค์กร"
+                  subtitle="ข้อมูลองค์กรที่สังกัด — แก้ไขรายละเอียดองค์กรในระบบได้ที่เมนูผู้ดูแลระบบเท่านั้น"
+                />
+                <Row gutter={[16, 0]}>
+                  <Col xs={24}>
+                    <Typography.Paragraph className="!mb-2">
+                      <Typography.Text strong>องค์กรที่สังกัด: </Typography.Text>
+                      <Typography.Text>
+                        {organizationOptions[0]?.label ?? (organizationsLoading ? "กำลังโหลด..." : "—")}
+                      </Typography.Text>
+                    </Typography.Paragraph>
+                    <Typography.Paragraph type="secondary" className="!mb-0 !text-sm">
+                      จัดการองค์กร:{" "}
+                      <Link to="/admin/organizations" className="text-teal-700 underline-offset-2 hover:underline">
+                        ผู้ดูแลระบบ → องค์กร
+                      </Link>
+                    </Typography.Paragraph>
+                    <Form.Item name="organization_id" hidden>
+                      <Input type="hidden" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </>
+            ) : (
+              <>
+                <SubsectionTitle icon={<BankOutlined />} title="องค์กร" subtitle="เลือกองค์กรที่สังกัด" />
+                <Row gutter={[16, 0]}>
+                  <Col xs={24} md={16} lg={14}>
+                    <Form.Item name="organization_id" label="องค์กร">
+                      <Select
+                        allowClear
+                        showSearch
+                        placeholder="ค้นหาหรือเลือกองค์กร"
+                        optionFilterProp="label"
+                        options={organizationOptions}
+                        loading={organizationsLoading}
+                        notFoundContent={organizationsLoading ? "กำลังโหลด..." : "ไม่พบข้อมูล"}
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </>
+            )}
           </SectionBlock>
 
           <SectionBlock
@@ -410,6 +558,7 @@ export function SettingsPage() {
           </div>
         </div>
       </Form>
+      </div>
     </div>
   )
 }

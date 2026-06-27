@@ -1,9 +1,8 @@
-import { Typography } from "antd"
-
 import { useMemo } from "react"
 
-import { Navigate, useParams } from "react-router"
+import { Navigate, useOutletContext, useParams } from "react-router"
 
+import { PageHeader } from "@/components/common/PageHeader"
 import { OrganizationDetailReportHeader } from "@/components/reports/OrganizationDetailReportHeader"
 
 import { ReportFrFormMetaRows } from "@/components/reports/ReportFrFormMetaRows"
@@ -22,7 +21,7 @@ import {
 
 } from "@/lib/reportExportCatalog"
 
-import { getLatestBaseYearSnapshot, getOrganizationStorageId } from "@/lib/organizationBaseYearStorage"
+import { DATA_NOT_FOUND_LABEL } from "@/lib/dataNotFound"
 
 import { Fr01ReportTemplate } from "@/pages/reports/fr01/Fr01ReportTemplate"
 
@@ -36,33 +35,13 @@ import { Fr05InventoryReportTemplate } from "@/pages/reports/fr05/Fr05InventoryR
 
 import { ReportSpreadsheetMock } from "@/pages/reports/ReportSpreadsheetMock"
 
-import { useReportsHeaderLiveData } from "@/pages/reports/useReportsHeaderLiveData"
-
-import { useAuthStore } from "@/store/useAuthStore"
-
-
+import type { ReportsHeaderLiveData } from "@/pages/reports/useReportsHeaderLiveData"
 
 export function ReportsSectionPage() {
 
   const { reportSlug } = useParams<{ reportSlug: string }>()
 
-  const live = useReportsHeaderLiveData()
-
-  const authUser = useAuthStore((s) => s.user)
-
-  const fr042BaseYearLabel = useMemo(() => {
-
-    const orgId = getOrganizationStorageId(authUser)
-
-    const snap = getLatestBaseYearSnapshot(orgId)
-
-    if (!snap) return ""
-
-    return `${snap.dat_start} – ${snap.dat_end}`
-
-  }, [authUser])
-
-
+  const live = useOutletContext<ReportsHeaderLiveData>()
 
   if (!reportSlug || !isValidReportPageSlug(reportSlug)) {
 
@@ -122,7 +101,9 @@ export function ReportsSectionPage() {
 
     () => ({
 
-      criteriaExplanationFromDb: live.fr032CriteriaExplanation,
+      criteriaExplanationFromDb: live.fr032CriteriaExplanation.trim()
+        ? live.fr032CriteriaExplanation
+        : DATA_NOT_FOUND_LABEL,
 
     }),
 
@@ -136,21 +117,10 @@ export function ReportsSectionPage() {
 
     <article className="flex min-h-[min(48vh,640px)] min-w-0 flex-col gap-6">
 
-      <header className="space-y-2">
-
-        <Typography.Title level={4} className="!mb-0 !font-mono !text-lg !font-semibold text-teal-900 md:!text-xl">
-
-          {item.code}
-
-        </Typography.Title>
-
-        <Typography.Paragraph type="secondary" className="!mb-0 !max-w-none !text-sm !leading-relaxed md:!text-[15px]">
-
-          {item.pageIntro}
-
-        </Typography.Paragraph>
-
-      </header>
+      <PageHeader
+        title={<span className="font-mono">{item.code}</span>}
+        description={item.pageIntro}
+      />
 
 
 
@@ -198,7 +168,7 @@ export function ReportsSectionPage() {
 
           <Fr04InventoryReportTemplate
             variant={item.code}
-            baseYearLabel={item.code === "Fr_04.2" ? fr042BaseYearLabel : undefined}
+            baseYearLabel={item.code === "Fr_04.2" ? live.baseYearRangeLabel ?? "" : undefined}
             bundle={live.fr04Bundle}
             tableLoading={live.fr04TableLoading}
           />

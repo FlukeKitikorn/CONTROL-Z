@@ -1,3 +1,4 @@
+import type { CalculationRunResponse } from "@/lib/api/types"
 import { getLatestBaseYearSnapshot, getOrganizationStorageId } from "@/lib/organizationBaseYearStorage"
 import type { UserProfile } from "@/store/useAuthStore"
 
@@ -13,8 +14,23 @@ export type CalculationResultsSnapshot = {
   scope1Tco2e: number
   scope2Tco2e: number
   scope3Tco2e: number
+  /** หมวดอื่น ๆ นอก Scope 1–3 (ถ้ามีในอนาคต) — ค่าเริ่มต้น 0 */
+  othersTco2e?: number
   /** mock = ตัวเลขจำลองจากปุ่มคำนวณ — api = มาจากเซิร์ฟเวอร์ */
   source: "mock" | "api"
+}
+
+export function calculationSnapshotFromApi(r: CalculationRunResponse): CalculationResultsSnapshot {
+  return {
+    ranAt: r.ran_at,
+    totalTco2e: r.total_tco2e,
+    vsBaseYearPercent: r.vs_base_year_percent,
+    scope1Tco2e: r.scope1_tco2e,
+    scope2Tco2e: r.scope2_tco2e,
+    scope3Tco2e: r.scope3_tco2e,
+    othersTco2e: 0,
+    source: r.source === "api" ? "api" : "mock",
+  }
 }
 
 const key = (orgId: string) => `control-z:calc-results:${orgId}`
@@ -22,6 +38,11 @@ const key = (orgId: string) => `control-z:calc-results:${orgId}`
 function emit(orgId: string) {
   if (typeof window === "undefined") return
   window.dispatchEvent(new CustomEvent(CONTROL_Z_CALC_RESULTS_UPDATED, { detail: { orgId } }))
+}
+
+/** แจ้งให้หน้าที่ฟัง (เช่น ผลการคำนวณ) รีเฟรชจาก API */
+export function notifyCalculationResultsUpdated(orgId: string) {
+  emit(orgId)
 }
 
 export function loadCalculationResultsSnapshot(orgId: string): CalculationResultsSnapshot | null {
@@ -46,6 +67,7 @@ export function loadCalculationResultsSnapshot(orgId: string): CalculationResult
       scope1Tco2e: o.scope1Tco2e,
       scope2Tco2e: o.scope2Tco2e,
       scope3Tco2e: o.scope3Tco2e,
+      othersTco2e: typeof o.othersTco2e === "number" ? o.othersTco2e : 0,
       source: o.source === "api" ? "api" : "mock",
     }
   } catch {
@@ -69,6 +91,7 @@ export function saveMockCalculationResults(
     scope1Tco2e: scope1,
     scope2Tco2e: scope2,
     scope3Tco2e: scope3,
+    othersTco2e: 0,
     source: "mock",
   }
   if (typeof localStorage !== "undefined") {

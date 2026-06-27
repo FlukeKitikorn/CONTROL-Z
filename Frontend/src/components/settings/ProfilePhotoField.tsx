@@ -23,6 +23,8 @@ type Draft =
 export type ProfilePhotoFieldHandle = {
   /** Value to persist when the settings form is submitted. */
   getValueForSave: () => Promise<string | undefined>
+  /** อัปโหลดผ่าน API — ใช้เมื่อต้องการส่งไฟล์จริงแทน data URL */
+  getPendingAvatarFile: () => File | undefined
   /** Discard local edits and show `savedUrl` again. */
   reset: () => void
 }
@@ -131,6 +133,10 @@ export const ProfilePhotoField = forwardRef<ProfilePhotoFieldHandle, ProfilePhot
           if (d.kind === "pending") return readFileAsDataURL(d.file)
           if (d.kind === "removed") return undefined
           return savedUrlRef.current
+        },
+        getPendingAvatarFile: () => {
+          const d = draftRef.current
+          return d.kind === "pending" ? d.file : undefined
         },
       }),
       [reset],

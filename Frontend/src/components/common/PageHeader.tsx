@@ -1,17 +1,39 @@
-import { Space, Typography } from "antd"
+import { Typography } from "antd"
+import type { ReactNode } from "react"
 
-interface PageHeaderProps {
-  title: string
-  description: string
+export interface PageHeaderProps {
+  title: ReactNode
+  description?: ReactNode
+  /** ปุ่มหรือ action ด้านขวา — layout เดียวกับหน้า Dashboard */
+  actions?: ReactNode
+  className?: string
 }
 
-export function PageHeader({ title, description }: PageHeaderProps) {
+/** หัวข้อหน้ามาตรฐาน — อ้างอิง layout Dashboard (ตัวอักษรใหญ่กว่าเล็กน้อย) */
+export function PageHeader({ title, description, actions, className }: PageHeaderProps) {
   return (
-    <Space direction="vertical" size={4}>
-      <Typography.Title level={2} style={{ margin: 0 }}>
-        {title}
-      </Typography.Title>
-      <Typography.Text type="secondary">{description}</Typography.Text>
-    </Space>
+    <header
+      className={[
+        "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <div className="min-w-0">
+        <Typography.Title
+          level={2}
+          className="!mb-0.5 !text-[1.75rem] !font-bold !leading-tight !text-slate-900 md:!text-[1.875rem]"
+        >
+          {title}
+        </Typography.Title>
+        {description ? (
+          <Typography.Text type="secondary" className="block text-[0.9375rem] leading-relaxed md:text-base">
+            {description}
+          </Typography.Text>
+        ) : null}
+      </div>
+      {actions ? <div className="page-header-actions">{actions}</div> : null}
+    </header>
   )
 }
