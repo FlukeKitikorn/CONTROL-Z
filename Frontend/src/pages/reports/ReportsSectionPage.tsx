@@ -43,24 +43,6 @@ export function ReportsSectionPage() {
 
   const live = useOutletContext<ReportsHeaderLiveData>()
 
-  if (!reportSlug || !isValidReportPageSlug(reportSlug)) {
-
-    return <Navigate to={`/app/reports/${DEFAULT_REPORT_PAGE_SLUG}`} replace />
-
-  }
-
-
-
-  const item = catalogItemByCode(reportSlug)
-
-  if (!item) {
-
-    return <Navigate to={`/app/reports/${DEFAULT_REPORT_PAGE_SLUG}`} replace />
-
-  }
-
-
-
   const fr01HeaderModel = useMemo(
 
     () => ({
@@ -110,6 +92,24 @@ export function ReportsSectionPage() {
     [live.fr032CriteriaExplanation],
 
   )
+
+
+
+  if (!reportSlug || !isValidReportPageSlug(reportSlug)) {
+
+    return <Navigate to={`/app/reports/${DEFAULT_REPORT_PAGE_SLUG}`} replace />
+
+  }
+
+
+
+  const item = catalogItemByCode(reportSlug)
+
+  if (!item) {
+
+    return <Navigate to={`/app/reports/${DEFAULT_REPORT_PAGE_SLUG}`} replace />
+
+  }
 
 
 

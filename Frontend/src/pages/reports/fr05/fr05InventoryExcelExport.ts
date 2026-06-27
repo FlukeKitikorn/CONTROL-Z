@@ -19,7 +19,8 @@ export function buildFr05ExcelExportPayload(
 /**
  * ส่งออกเป็นไฟล์ .xlsx — **ยังไม่ implement**
  */
-export async function exportFr05ToExcelFile(_payload: Fr05ExcelExportPayload): Promise<void> {
+export async function exportFr05ToExcelFile(payload: Fr05ExcelExportPayload): Promise<void> {
+  void payload
   await Promise.resolve()
   throw new Error("ยังไม่ได้ติดตั้ง xlsx/exceljs — implement ที่ fr05InventoryExcelExport.ts")
 }

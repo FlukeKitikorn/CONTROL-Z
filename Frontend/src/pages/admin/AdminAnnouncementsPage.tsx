@@ -15,11 +15,8 @@ import {
 import type { ColumnsType } from "antd/es/table"
 import { PlusOutlined } from "@ant-design/icons"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import {
-  AdminStandardTableCard,
-  AdminTableToolbar,
-  adminStandardTablePagination,
-} from "@/components/admin/AdminTableToolbar"
+import { adminStandardTablePagination } from "@/components/admin/adminTableConstants"
+import { AdminStandardTableCard, AdminTableToolbar } from "@/components/admin/AdminTableToolbar"
 import { AdminPageShell } from "@/components/admin/AdminPageShell"
 import { ApiError } from "@/lib/api/http"
 import {

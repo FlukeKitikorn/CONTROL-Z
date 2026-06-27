@@ -2,11 +2,8 @@ import { BankOutlined, PlusOutlined } from "@ant-design/icons"
 import { Alert, App, Button, Descriptions, Form, Input, Modal, Popconfirm, Space, Table, Tag, Typography } from "antd"
 import type { ColumnsType } from "antd/es/table"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import {
-  AdminStandardTableCard,
-  AdminTableToolbar,
-  adminStandardTablePagination,
-} from "@/components/admin/AdminTableToolbar"
+import { adminStandardTablePagination } from "@/components/admin/adminTableConstants"
+import { AdminStandardTableCard, AdminTableToolbar } from "@/components/admin/AdminTableToolbar"
 import { AdminPageShell } from "@/components/admin/AdminPageShell"
 import { OrganizationRegistrationForm } from "@/components/organization/OrganizationRegistrationForm"
 import { ApiError } from "@/lib/api/http"

@@ -8,11 +8,6 @@ const adminStandardTableCardProps = {
   className: "shadow-sm",
 }
 
-export const adminStandardTablePagination = {
-  pageSize: 10,
-  showSizeChanger: true as const,
-}
-
 type AdminTableToolbarProps = {
   placeholder: string
   value: string
