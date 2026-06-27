@@ -1,6 +1,6 @@
 # ออกแบบ API (CONTROL-Z)
 
-เอกสารนี้เสนอ **เส้นทาง REST API** ให้สอดคล้องกับฐานข้อมูลใน [`database-mysql-data-dictionary.md`](./database-mysql-data-dictionary.md) และ **หน้าบ้านปัจจุบัน** (เส้นทาง `/app/*`, `/admin/*`, `/auth/*`)
+เอกสารนี้เสนอ **เส้นทาง REST API** ให้สอดคล้องกับฐานข้อมูลใน [`database-overview.md`](./database-overview.md) และ **หน้าบ้านปัจจุบัน** (เส้นทาง `/app/*`, `/admin/*`, `/auth/*`)
 
 **สมมติฐานทั่วไป**
 

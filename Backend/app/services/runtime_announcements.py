@@ -73,11 +73,12 @@ def list_announcements(*, active_only: bool = False) -> list[dict[str, Any]]:
     return items
 
 
-def get_announcement(announcement_id: str) -> dict[str, Any] | None:
-    for a in list_announcements(active_only=False):
-        if str(a.get("id")) == announcement_id:
-            return a
-    return None
+# REFACTOR(CANDIDATE-REMOVAL): ไม่มี caller — Phase A dead-code audit
+# def get_announcement(announcement_id: str) -> dict[str, Any] | None:
+#     for a in list_announcements(active_only=False):
+#         if str(a.get("id")) == announcement_id:
+#             return a
+#     return None
 
 
 def create_announcement(

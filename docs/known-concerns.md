@@ -1,7 +1,7 @@
 # ข้อกังวลและข้อจำกัดที่รู้ — CONTROL-Z v2
 
 > อัปเดต: มิถุนายน 2569  
-> ใช้คู่กับ [`database-import-plan.md`](database-import-plan.md) และ [`ef-database-update-plan.md`](ef-database-update-plan.md)
+> ใช้คู่กับ [`database-overview.md`](database-overview.md)
 
 เอกสารนี้รวบรวมสิ่งที่ **ทำแล้วแต่ยังไม่สมบูรณ์** หรือ **ต้องระวังตอน dev/production** — ไม่ใช่รายการบั๊กที่ยังไม่รู้
 
@@ -12,7 +12,7 @@
 | หัวข้อ | สถานะ | รายละเอียด |
 |--------|--------|------------|
 | DB แยก `control_z` / `control_z_v2` | เปิด | ข้อมูล org เดิมไม่ได้ migrate อัตโนมัติ — dev ใช้ `user@example.com` / org **1** บน v2 |
-| EF ชุดเต็ม (~256 แถว) | ✅ ใน DB | รันผ่าน `02b` + `03c` + `04` + `04c` (ดู import plan) |
+| EF ชุดเต็ม (~256 แถว) | ✅ ใน DB | รันผ่าน `docs/database-seed.sql` |
 | On-road **vehicle_based** | ❌ ไม่มี EF | ฟอร์มเลือกประเภทรถได้ แต่ backend ข้ามการคำนวณ (`option_key` = null) |
 | CNG on-road หน่วย m³ vs kg | ⚠️ workaround | `unit_aliases`: `m3 → kg` × 0.72 เป็นค่าประมาณ ไม่ใช่ NCV จริง |
 | ก๊าซธรรมชาติ stationary (m³) | ⚠️ | bridge ชี้ `FUEL_NATGAS_NCV_MJ` แต่ UI กรอก m³ — ต้องมี alias/แปลงหน่วยเพิ่มถ้าต้องการความแม่นยำ |
@@ -59,7 +59,7 @@
 
 ```text
 docker compose up -d mysql
-# import docs/sql ชุดเต็ม (ดู database-import-plan.md)
+# import docs/database-seed.sql (ดู database-overview.md)
 
 Backend/.env
   DATABASE_URL=mysql+pymysql://root:root@127.0.0.1:3306/control_z_v2

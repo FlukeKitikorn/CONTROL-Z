@@ -55,3 +55,4 @@ watchfiles==1.1.1
 websockets==16.0
 win32_setctime==1.2.0
 pytest==8.4.2
+redis==5.2.1

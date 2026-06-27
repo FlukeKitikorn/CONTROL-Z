@@ -29,6 +29,26 @@ class Settings(BaseSettings):
     mail_from: str = ""
     mail_from_name: str = "CONTROL-Z"
 
+    # Redis — ว่าง = ไม่ใช้ Redis (พฤติกรรมเดิมทั้งหมด)
+    redis_url: str = ""
+    redis_key_prefix: str = "controlz"
+    redis_socket_timeout_seconds: float = 2.0
+    redis_cache_enabled: bool = True
+    redis_cache_default_ttl_seconds: int = 300
+    redis_cache_ef_ttl_seconds: int = 3600
+    redis_cache_calc_latest_ttl_seconds: int = 120
+
+    # Server-side sessions (ต้องมี REDIS_URL) — ใช้คู่ JWT claim jti
+    redis_sessions_enabled: bool = False
+    session_ttl_seconds: int = 60 * 60 * 24
+    session_cookie_name: str = "controlz_session"
+    session_cookie_secure: bool = False
+    session_cookie_samesite: str = "lax"
+
+    @cached_property
+    def redis_configured(self) -> bool:
+        return bool(self.redis_url.strip())
+
     @cached_property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

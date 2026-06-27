@@ -1,95 +1,16 @@
 -- =============================================================================
--- EF ↔ Frontend bridge — ใช้หลัง import ข้อมูลตาม ef-database-update-plan.md
--- ฐานข้อมูล: control_z_v2
---
--- เป้าหมาย: ไม่แก้ flow / option_key ใน DataInputPage.tsx
--- Backend resolve EF ผ่าน ef_ui_options + scope3_ef_catalog
+-- [04/04] Frontend ↔ EF Bridge — unit aliases, ui_sector_map, ef_ui_options,
+--         scope3_ef_catalog, views ef_lookup + ef_resolve_by_ui
+-- ต้องรัน 01 → 02 → 03 ก่อน
+-- อ้างอิง: docs/database-overview.md (bridge EF ↔ Frontend)
+--           Frontend/src/pages/DataInputPage.tsx (option_key constants)
 -- =============================================================================
 
 USE control_z_v2;
 
 -- -----------------------------------------------------------------------------
--- 1) คอลัมน์ที่แผน EF ระบุไว้แล้ว (รันครั้งเดียว — ข้ามถ้ามีแล้ว)
+-- 1) แปลงหน่วย UI → หน่วย EF
 -- -----------------------------------------------------------------------------
-ALTER TABLE emission_factors
-  ADD COLUMN co2_type ENUM('fossil','biogenic') NULL
-    COMMENT 'NULL=ไม่ใช่ CO2 fossil/biogenic สำหรับแยกรายงาน'
-    AFTER activity_subtype;
-
-ALTER TABLE emission_factors
-  ADD COLUMN ef_purpose ENUM('direct','scope3_upstream','cfo_scope2','scope3_elec','cfp') NULL
-    COMMENT 'ใช้เลือกชุด EF ไฟฟ้า/upstream'
-    AFTER co2_type;
-
--- -----------------------------------------------------------------------------
--- 2) ผูก ef_categories กับ 15 หมวด Scope 3 บนฟอร์ม (s3_cat_*)
--- -----------------------------------------------------------------------------
-ALTER TABLE ef_categories
-  ADD COLUMN scope3_parent_code VARCHAR(80) NULL
-    COMMENT 'FK แบบ soft → category.category_code เช่น s3_cat_1_purchased_goods'
-    AFTER category_code;
-
-ALTER TABLE ef_categories
-  ADD KEY ix_ef_categories_s3_parent (scope3_parent_code);
-
--- -----------------------------------------------------------------------------
--- 3) Master map: ค่า dropdown Frontend → ef_category_code (+ context)
---    option_key ต้องตรงกับ value ใน DataInputPage.tsx
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS ef_ui_options (
-  option_id          INT          NOT NULL AUTO_INCREMENT,
-  scope_scid         TINYINT      NOT NULL COMMENT '1=Scope1, 2=Scope2, 3=Scope3',
-  ui_context         VARCHAR(50)  NOT NULL COMMENT 'stationary_combustion|on_road|off_road|electricity|refrigerant',
-  option_key         VARCHAR(80)  NOT NULL COMMENT 'ค่า value ใน form เช่น diesel_gas_oil, r134a',
-  label_th           VARCHAR(200) NOT NULL,
-  ef_category_code   VARCHAR(80)  NOT NULL COMMENT '→ ef_categories.category_code',
-  activity_subtype   VARCHAR(100) NULL COMMENT 'เช่น Agriculture สำหรับ off-road; NULL=ไม่แยก',
-  ef_purpose         ENUM('direct','scope3_upstream','cfo_scope2','scope3_elec','cfp') NULL,
-  unit_denominator   VARCHAR(20)  NOT NULL COMMENT 'หน่วยกิจกรรมมาตรฐาน: L|m3|t|kg|kWh',
-  calc_mode          ENUM(
-                       'combustion_multigas',
-                       'refrigerant_gwp',
-                       'electricity_grid',
-                       'scope3_single_ef'
-                     ) NOT NULL DEFAULT 'combustion_multigas',
-  sort_order         SMALLINT     NOT NULL DEFAULT 0,
-  is_active          TINYINT(1)   NOT NULL DEFAULT 1,
-  notes              VARCHAR(300) NULL,
-  PRIMARY KEY (option_id),
-  UNIQUE KEY uq_ef_ui_option (scope_scid, ui_context, option_key, activity_subtype),
-  KEY ix_ef_ui_ef_cat (ef_category_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='แมป UI option → EF category (ไม่แก้ Frontend)';
-
--- -----------------------------------------------------------------------------
--- 4) รายการ EF ย่อย Scope 3 (ใช้ตอนคำนวณ / แสดงผลรายงาน)
---    Frontend หมวด s3_cat_* ยังกรอกอิสระ — backend เลือก line จาก catalog
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS scope3_ef_catalog (
-  line_code            VARCHAR(50)  NOT NULL,
-  scope3_category_code VARCHAR(80)  NOT NULL COMMENT 's3_cat_1_purchased_goods …',
-  label_th             VARCHAR(200) NOT NULL,
-  default_unit         VARCHAR(20)  NOT NULL,
-  entry_mode_hint      ENUM('baht','quantity','either','distance','fuel') NULL,
-  ef_category_code     VARCHAR(80)  NOT NULL,
-  activity_name_match  VARCHAR(200) NULL COMMENT 'optional filter → emission_factors.activity_name_th',
-  sort_order           SMALLINT     NOT NULL DEFAULT 0,
-  is_active            TINYINT(1)   NOT NULL DEFAULT 1,
-  PRIMARY KEY (line_code),
-  KEY ix_s3_ef_cat_parent (scope3_category_code),
-  KEY ix_s3_ef_cat_ef (ef_category_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- -----------------------------------------------------------------------------
--- 5) แปลงหน่วย UI → หน่วย EF
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS unit_aliases (
-  ui_unit            VARCHAR(20)  NOT NULL COMMENT 'L|m3|t|kWh|kg|unit|litre',
-  ef_unit_denominator VARCHAR(20) NOT NULL COMMENT 'litre|m3|kg|kWh|THB|tkm|km',
-  multiplier         DECIMAL(18,8) NOT NULL DEFAULT 1.00000000,
-  PRIMARY KEY (ui_unit, ef_unit_denominator)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 INSERT IGNORE INTO unit_aliases (ui_unit, ef_unit_denominator, multiplier) VALUES
   ('L',     'litre', 1),
   ('litre', 'litre', 1),
@@ -102,8 +23,16 @@ INSERT IGNORE INTO unit_aliases (ui_unit, ef_unit_denominator, multiplier) VALUE
   ('THB',   'THB',   1);
 
 -- -----------------------------------------------------------------------------
--- 6) Seed ตัวอย่าง ef_ui_options (Scope 1–2 ที่ Frontend ใช้อยู่แล้ว)
---    เติมครบหลัง import ef_categories ตาม ef-database-update-plan.md
+-- 2) แมป sector ใน form off-road → activity_subtype (ถ้า EF แยกตาม sector)
+-- -----------------------------------------------------------------------------
+INSERT IGNORE INTO ui_sector_map (ui_sector, ef_activity_subtype) VALUES
+  ('agriculture', 'Agriculture'),
+  ('forestry',    'Forestry'),
+  ('industry',    'Industry'),
+  ('household',   'Household');
+
+-- -----------------------------------------------------------------------------
+-- 3) ef_ui_options — คีย์ตรงกับ DataInputPage (Scope 1–2)
 -- -----------------------------------------------------------------------------
 INSERT INTO ef_ui_options
   (scope_scid, ui_context, option_key, label_th, ef_category_code, activity_subtype, ef_purpose, unit_denominator, calc_mode, sort_order)
@@ -128,7 +57,7 @@ VALUES
   (1, 'on_road', 'motor_gasoline_low_mileage_light_duty','เบนซิน low mileage','MOBILE_ONROAD_GAS_LOWM', NULL, NULL, 'L', 'combustion_multigas', 33),
   (1, 'on_road', 'lpg',                             'LPG On-road',           'MOBILE_ONROAD_LPG_L',  NULL, NULL, 'L',  'combustion_multigas', 34),
   (1, 'on_road', 'cng',                             'CNG On-road',           'MOBILE_ONROAD_CNG',    NULL, NULL, 'kg', 'combustion_multigas', 35),
-  -- Scope 1 off-road (sector แยกใน form → activity_subtype)
+  -- Scope 1 off-road (activity_subtype ใน bridge; EF ชุด priority ใช้ NULL = ทุก sector)
   (1, 'off_road', 'diesel', 'ดีเซล off-road (เกษตร)',     'MOBILE_OFFROAD_DIESEL', 'Agriculture', NULL, 'L', 'combustion_multigas', 40),
   (1, 'off_road', 'diesel', 'ดีเซล off-road (ป่าไม้)',    'MOBILE_OFFROAD_DIESEL', 'Forestry',    NULL, 'L', 'combustion_multigas', 41),
   (1, 'off_road', 'diesel', 'ดีเซล off-road (อุตสาหกรรม)','MOBILE_OFFROAD_DIESEL', 'Industry',    NULL, 'L', 'combustion_multigas', 42),
@@ -141,14 +70,18 @@ VALUES
   (2, 'refrigerant', 'r134',       'R-134', 'FUGITIVE_R134',  NULL, NULL, 'kg', 'refrigerant_gwp', 63),
   (2, 'refrigerant', 'r134a',      'R-134a','FUGITIVE_R134A', NULL, NULL, 'kg', 'refrigerant_gwp', 64),
   (2, 'refrigerant', 'r143',       'R-143', 'FUGITIVE_R143',  NULL, NULL, 'kg', 'refrigerant_gwp', 65),
-  (2, 'refrigerant', 'r143a',      'R-143a','FUGITIVE_R143A', NULL, NULL, 'kg', 'refrigerant_gwp', 66)
+  (2, 'refrigerant', 'r143a',      'R-143a','FUGITIVE_R143A', NULL, NULL, 'kg', 'refrigerant_gwp', 66),
+  (2, 'refrigerant', 'r404a',      'R-404A','FUGITIVE_R404A', NULL, NULL, 'kg', 'refrigerant_gwp', 67),
+  (2, 'refrigerant', 'r407a',      'R-407A','FUGITIVE_R407A', NULL, NULL, 'kg', 'refrigerant_gwp', 68),
+  (2, 'refrigerant', 'r407c',      'R-407C','FUGITIVE_R407C', NULL, NULL, 'kg', 'refrigerant_gwp', 69),
+  (2, 'refrigerant', 'r410a',      'R-410A','FUGITIVE_R410A', NULL, NULL, 'kg', 'refrigerant_gwp', 70)
 ON DUPLICATE KEY UPDATE
   label_th = VALUES(label_th),
   ef_category_code = VALUES(ef_category_code),
   calc_mode = VALUES(calc_mode);
 
 -- -----------------------------------------------------------------------------
--- 7) Seed scope3_ef_catalog (อ้าง ef-database-update-plan ส่วนที่ 11)
+-- 4) scope3_ef_catalog — แมปบรรทัด Scope 3 ในฟอร์ม → ef_category_code
 -- -----------------------------------------------------------------------------
 INSERT INTO scope3_ef_catalog
   (line_code, scope3_category_code, label_th, default_unit, entry_mode_hint, ef_category_code, activity_name_match, sort_order)
@@ -166,7 +99,44 @@ VALUES
 ON DUPLICATE KEY UPDATE label_th = VALUES(label_th);
 
 -- -----------------------------------------------------------------------------
--- 8) View สำหรับ Backend — resolve EF ต่อ UI option
+-- 5) View: ef_lookup — รายการ EF ทั่วไป (admin / dropdown แหล่งอ้างอิง)
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW ef_lookup AS
+SELECT
+  ef.ef_id,
+  es.source_code,
+  es.source_name_th  AS source_th,
+  es.source_type,
+  ec.category_code,
+  ec.name_th          AS category_th,
+  ec.unit_activity,
+  gt.gas_code,
+  gt.gas_name,
+  ef.activity_name_th,
+  ef.activity_subtype,
+  ef.co2_type,
+  ef.ef_purpose,
+  ef.ef_value,
+  ef.ef_unit,
+  ef.ef_unit_numerator,
+  ef.ef_unit_denominator,
+  ef.region,
+  ef.is_default,
+  ef.tier_level,
+  ef.effective_from,
+  ef.effective_until,
+  pc.name_th          AS parent_category_th
+FROM emission_factors ef
+JOIN ef_sources   es ON es.source_id   = ef.source_id
+JOIN ef_categories ec ON ec.category_id = ef.category_id
+JOIN gas_types    gt ON gt.gas_id      = ef.gas_id
+LEFT JOIN ef_categories pc ON pc.category_id = ec.parent_id
+WHERE ef.is_active = 1
+  AND es.is_active = 1
+  AND (ef.effective_until IS NULL OR ef.effective_until >= CURDATE());
+
+-- -----------------------------------------------------------------------------
+-- 6) View: ef_resolve_by_ui — Backend resolve ตาม option_key + ui_context
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE VIEW ef_resolve_by_ui AS
 SELECT

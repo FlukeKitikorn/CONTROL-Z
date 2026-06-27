@@ -1,5 +1,5 @@
 /** Base URL ว่าง = ใช้ Vite proxy ไปที่ FastAPI (ดู vite.config.ts) */
-export function getApiBaseUrl(): string {
+function getApiBaseUrl(): string {
   return import.meta.env.VITE_API_BASE_URL ?? ""
 }
 

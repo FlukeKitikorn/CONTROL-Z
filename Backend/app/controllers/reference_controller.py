@@ -3,6 +3,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, col, select
 
+from app.core.cache import get_cache, invalidate_ef_reference_cache
+from app.core.cache_keys import ef_ui_options_key
+from app.core.config import settings
 from app.core.database import get_session
 from app.core.deps import get_admin_privilege, get_current_privilege, get_current_user
 from app.models import Gwp, Scope, User, UserPrivilege
@@ -113,6 +116,7 @@ def create_gwp_reference(
     session.add(row)
     session.commit()
     session.refresh(row)
+    invalidate_ef_reference_cache()
     return row
 
 
@@ -134,6 +138,7 @@ def patch_gwp_reference(
     session.add(row)
     session.commit()
     session.refresh(row)
+    invalidate_ef_reference_cache()
     return row
 
 
@@ -149,6 +154,7 @@ def delete_gwp_reference(
         raise HTTPException(status_code=404, detail="ไม่พบ GWP")
     session.delete(row)
     session.commit()
+    invalidate_ef_reference_cache()
 
 
 @router.get("/emission-factors", response_model=list[dict])
@@ -186,10 +192,19 @@ def list_ef_ui_options(
     ui_context: str | None = Query(default=None, max_length=80),
 ) -> list[EfUiOptionRead]:
     _ = user, priv
-    try:
-        rows = list_ui_options(session, scope_scid=scope_scid, ui_context=ui_context)
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail="ยังไม่มีตาราง EF bridge — รัน docs/sql/01–04") from exc
+    cache = get_cache()
+    key = ef_ui_options_key(scope_scid, ui_context)
+
+    def load_rows() -> list[dict]:
+        try:
+            return list_ui_options(session, scope_scid=scope_scid, ui_context=ui_context)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="ยังไม่มีตาราง EF bridge — รัน docs/database-seed.sql") from exc
+
+    if cache.enabled:
+        rows = cache.get_or_set_json(key, settings.redis_cache_ef_ttl_seconds, load_rows)
+    else:
+        rows = load_rows()
     return [EfUiOptionRead(**r) for r in rows]
 
 

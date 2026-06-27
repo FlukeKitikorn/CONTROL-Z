@@ -5,6 +5,8 @@ export type AuthTokenResponse = {
   access_token: string
   token_type: string
   expires_in: number
+  /** มีเมื่อ Backend เปิด REDIS_SESSIONS_ENABLED */
+  session_id?: string | null
   user: {
     user_id: number
     fname: string

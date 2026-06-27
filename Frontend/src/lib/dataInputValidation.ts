@@ -167,7 +167,7 @@ export function evaluateCalculationReadinessFromBundle(
   }
 }
 
-export function evaluateCalculationReadiness(input: {
+function evaluateCalculationReadiness(input: {
   mainStep: number
   hasMaterialTopics: boolean
   materialTopicIds: string[]

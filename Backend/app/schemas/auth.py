@@ -48,6 +48,16 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     user: UserPublic
+    session_id: str | None = Field(
+        default=None,
+        description="มีเมื่อเปิด REDIS_SESSIONS_ENABLED — ใช้ revoke/logout ฝั่ง server",
+    )
+
+
+class SessionStatusResponse(BaseModel):
+    authenticated: bool
+    user: UserPublic | None = None
+    sessions_server_side: bool = False
 
 
 class ForgotPasswordRequest(BaseModel):

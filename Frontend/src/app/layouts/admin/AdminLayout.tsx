@@ -20,7 +20,7 @@ import { adminBreadcrumbItems } from "@/app/breadcrumbs/routeBreadcrumbs"
 import { PageLoadingFallback } from "@/components/common/PageLoadingFallback"
 import { AppHeaderAccountZone } from "@/components/layout/AppHeaderAccountZone"
 import { ADMIN_LOGIN_PATH } from "@/lib/authPaths"
-import { useAuthStore } from "@/store/useAuthStore"
+import { performLogout } from "@/lib/logout"
 
 const { Header, Sider, Content } = Layout
 
@@ -122,7 +122,6 @@ export function AdminLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const screens = Grid.useBreakpoint()
-  const logout = useAuthStore((state) => state.logout)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const selectedKey =
@@ -219,8 +218,7 @@ export function AdminLayout() {
               icon={<LogoutOutlined />}
               block
               onClick={() => {
-                logout()
-                navigate(ADMIN_LOGIN_PATH)
+                void performLogout().then(() => navigate(ADMIN_LOGIN_PATH))
               }}
             >
               ออกจากระบบ

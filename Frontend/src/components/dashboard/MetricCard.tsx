@@ -1,3 +1,9 @@
+/**
+ * REFACTOR(CANDIDATE-REMOVAL): ไม่ถูก import — Phase A dead-code audit
+ */
+export {}
+
+/*
 import { Card, Typography } from "antd"
 
 interface MetricCardProps {
@@ -27,3 +33,4 @@ export function MetricCard({ label, value, helper, trend = "neutral" }: MetricCa
     </Card>
   )
 }
+*/

@@ -1,22 +1,11 @@
 -- =============================================================================
--- CONTROL-Z v2 — Full schema + seed สำหรับหน้า «กรอกข้อมูล»
+-- [01/04] CONTROL-Z v2 — Core schema + seed แอป (ไม่รวม EF ชุด TGO 2569)
 --
--- ⚠️  DEPRECATED สำหรับงาน EF / TGO 2569 — ใช้ชุดแยกขั้นแทน:
---     docs/database-import-plan.md
---     docs/sql/01-core-schema-seed.sql  → 02 → 03 → 04
+-- ฐานข้อมูล: control_z_v2
+-- เอกสาร: docs/database-overview.md
+-- สร้างรวม: docs/database-seed.sql (จาก docs/scripts/build-database-seed.ps1)
 --
--- อ้างอิงเดิม:
---   docs/mysql-data-dictionary-and-seed.sql (core + EF)
---   docs/data-input-db-source-analysis.md (ขยาย schema)
---
--- ฐานข้อมูล: control_z_v2  (import แยกจาก control_z เพื่อเทียบกัน)
---
--- บัญชีทดสอบ (dev เท่านั้น):
---   user@example.com / SecretPass1!
---   admin@admin.com  / root@#1234
---
--- รัน (legacy monolith):
---   mysql -u root -p < docs/mysql-data-input-seed.sql
+-- บัญชีทดสอบ: user@example.com / SecretPass1! | admin@admin.com / root@#1234
 -- =============================================================================
 
 CREATE DATABASE IF NOT EXISTS control_z_v2
@@ -31,7 +20,12 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- -----------------------------------------------------------------------------
 -- DROP (ลำดับย้อน FK)
 -- -----------------------------------------------------------------------------
+DROP VIEW IF EXISTS ef_resolve_by_ui;
 DROP VIEW IF EXISTS ef_lookup;
+DROP TABLE IF EXISTS ef_ui_options;
+DROP TABLE IF EXISTS scope3_ef_catalog;
+DROP TABLE IF EXISTS unit_aliases;
+DROP TABLE IF EXISTS ui_sector_map;
 DROP TABLE IF EXISTS fr04_ef_selection;
 DROP TABLE IF EXISTS emission_factors;
 DROP TABLE IF EXISTS ef_categories;
@@ -184,7 +178,7 @@ CREATE TABLE organization_information (
     FOREIGN KEY (organization_id) REFERENCES organizations (organization_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ขยายตาม data-input-db-source-analysis.md
+-- ขยายตาม docs/database-overview.md (กลุ่ม collect_information)
 CREATE TABLE collect_information (
   ciid                    INT          NOT NULL AUTO_INCREMENT,
   organization_id         INT          NOT NULL,
@@ -435,7 +429,7 @@ CREATE TABLE gwp_values (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =============================================================================
--- SECTION 2: Emission Factor tables (จาก mysql-data-dictionary-and-seed.sql)
+-- SECTION 2: Emission Factor tables (ดู docs/database-overview.md)
 -- =============================================================================
 
 CREATE TABLE ef_sources (
@@ -458,10 +452,11 @@ CREATE TABLE ef_sources (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE ef_categories (
-  category_id   INT          NOT NULL AUTO_INCREMENT,
-  parent_id     INT          NULL,
-  scope_id      INT          NULL,
-  category_code VARCHAR(50)  NOT NULL,
+  category_id         INT          NOT NULL AUTO_INCREMENT,
+  parent_id           INT          NULL,
+  scope_id            INT          NULL,
+  category_code       VARCHAR(50)  NOT NULL,
+  scope3_parent_code  VARCHAR(80)  NULL COMMENT 'เช่น s3_cat_1_purchased_goods',
   name_th       VARCHAR(200) NOT NULL,
   name_en       VARCHAR(200) NULL,
   description   VARCHAR(500) NULL,
@@ -472,6 +467,7 @@ CREATE TABLE ef_categories (
   UNIQUE KEY uq_ef_categories_code (category_code),
   KEY ix_ef_categories_parent (parent_id),
   KEY ix_ef_categories_scope (scope_id),
+  KEY ix_ef_categories_s3_parent (scope3_parent_code),
   CONSTRAINT fk_ef_categories_parent
     FOREIGN KEY (parent_id) REFERENCES ef_categories (category_id),
   CONSTRAINT fk_ef_categories_scope
@@ -486,6 +482,8 @@ CREATE TABLE emission_factors (
   activity_name_th     VARCHAR(200)  NOT NULL,
   activity_name_en     VARCHAR(200)  NULL,
   activity_subtype     VARCHAR(100)  NULL,
+  co2_type             ENUM('fossil','biogenic') NULL,
+  ef_purpose           ENUM('direct','scope3_upstream','cfo_scope2','scope3_elec','cfp') NULL,
   ef_value             DECIMAL(20,8) NOT NULL,
   ef_unit              VARCHAR(100)  NOT NULL,
   ef_unit_numerator    VARCHAR(50)   NOT NULL,
@@ -542,6 +540,54 @@ CREATE TABLE fr04_ef_selection (
     FOREIGN KEY (gas_id) REFERENCES gas_types (gas_id),
   CONSTRAINT fk_fr04_ef_gwp
     FOREIGN KEY (gwp_id) REFERENCES gwp_values (gwp_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bridge tables (Frontend option_key → EF) — รายละเอียด seed ใน 04
+CREATE TABLE ef_ui_options (
+  option_id          INT          NOT NULL AUTO_INCREMENT,
+  scope_scid         TINYINT      NOT NULL,
+  ui_context         VARCHAR(50)  NOT NULL,
+  option_key         VARCHAR(80)  NOT NULL,
+  label_th           VARCHAR(200) NOT NULL,
+  ef_category_code   VARCHAR(80)  NOT NULL,
+  activity_subtype   VARCHAR(100) NULL,
+  ef_purpose         ENUM('direct','scope3_upstream','cfo_scope2','scope3_elec','cfp') NULL,
+  unit_denominator   VARCHAR(20)  NOT NULL,
+  calc_mode          ENUM('combustion_multigas','refrigerant_gwp','electricity_grid','scope3_single_ef')
+                     NOT NULL DEFAULT 'combustion_multigas',
+  sort_order         SMALLINT     NOT NULL DEFAULT 0,
+  is_active          TINYINT(1)   NOT NULL DEFAULT 1,
+  notes              VARCHAR(300) NULL,
+  PRIMARY KEY (option_id),
+  UNIQUE KEY uq_ef_ui_option (scope_scid, ui_context, option_key, activity_subtype),
+  KEY ix_ef_ui_ef_cat (ef_category_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE scope3_ef_catalog (
+  line_code            VARCHAR(50)  NOT NULL,
+  scope3_category_code VARCHAR(80)  NOT NULL,
+  label_th             VARCHAR(200) NOT NULL,
+  default_unit         VARCHAR(20)  NOT NULL,
+  entry_mode_hint      ENUM('baht','quantity','either','distance','fuel') NULL,
+  ef_category_code     VARCHAR(80)  NOT NULL,
+  activity_name_match  VARCHAR(200) NULL,
+  sort_order           SMALLINT     NOT NULL DEFAULT 0,
+  is_active            TINYINT(1)   NOT NULL DEFAULT 1,
+  PRIMARY KEY (line_code),
+  KEY ix_s3_ef_cat_parent (scope3_category_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE unit_aliases (
+  ui_unit             VARCHAR(20)  NOT NULL,
+  ef_unit_denominator VARCHAR(20)  NOT NULL,
+  multiplier          DECIMAL(18,8) NOT NULL DEFAULT 1.00000000,
+  PRIMARY KEY (ui_unit, ef_unit_denominator)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE ui_sector_map (
+  ui_sector           VARCHAR(50)  NOT NULL COMMENT 'ค่าใน form: agriculture, forestry, …',
+  ef_activity_subtype VARCHAR(100) NOT NULL COMMENT 'ค่าใน emission_factors.activity_subtype',
+  PRIMARY KEY (ui_sector)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -697,7 +743,7 @@ INSERT INTO fr04_1_detail (subid, value, unit, tgo_ef, kgco2e_total, description
   (1, 12000, 'ลิตร', 1, NULL, 'รถกระบะดีเซลรวมปี'),
   (3, 850000, 'kWh', 1, NULL, 'ไฟฟ้าจากการไฟฟ้ารวมปี');
 
--- EF master seed (จาก mysql-data-dictionary-and-seed.sql)
+-- EF master seed (ดู docs/database-overview.md)
 INSERT INTO ef_sources (source_code, source_name, source_name_th, organization, ar_period, source_type, sort_order) VALUES
   ('TGO_AR5',   'Thailand Greenhouse Gas Management Organization EF (AR5)',
                 'ค่า EF จาก อบก. (AR5)',            'TGO',   'AR5', 'national',      1),
@@ -720,6 +766,7 @@ INSERT INTO ef_sources (source_code, source_name, source_name_th, organization, 
   ('OTHER',     'Other Sources',
                 'แหล่งอื่น ๆ',                     NULL,    NULL,  'other',         10);
 
+-- EF hierarchy ระดับบนเท่านั้น — หมวดย่อย + ค่า EF อยู่ใน 02 และ 03
 INSERT INTO ef_categories (category_code, name_th, name_en, scope_id, sort_order) VALUES
   ('SCOPE1_COMBUSTION',  'การเผาไหม้เชื้อเพลิงแบบอยู่กับที่',  'Stationary Combustion',        1, 1),
   ('SCOPE1_MOBILE',      'การเผาไหม้จากการเคลื่อนที่',          'Mobile Combustion',            1, 2),
@@ -730,102 +777,4 @@ INSERT INTO ef_categories (category_code, name_th, name_en, scope_id, sort_order
   ('SCOPE3_UPSTREAM',    'Scope 3 — Upstream',                 'Upstream Activities',           3, 7),
   ('SCOPE3_DOWNSTREAM',  'Scope 3 — Downstream',               'Downstream Activities',         3, 8);
 
-INSERT INTO ef_categories (parent_id, category_code, name_th, name_en, scope_id, unit_activity, sort_order) VALUES
-  (1, 'FUEL_DIESEL',    'น้ำมันดีเซล',        'Diesel',          1, 'ลิตร',  11),
-  (1, 'FUEL_GASOLINE',  'น้ำมันเบนซิน',       'Gasoline',        1, 'ลิตร',  12),
-  (1, 'FUEL_LPG',       'LPG',                'LPG',             1, 'กก.',   13),
-  (1, 'FUEL_NG',        'ก๊าซธรรมชาติ (CNG)', 'Natural Gas/CNG', 1, 'ลบ.ม.', 14),
-  (1, 'FUEL_BUNKER',    'น้ำมันเตา',          'Fuel Oil/Bunker', 1, 'ลิตร',  15),
-  (1, 'FUEL_COAL',      'ถ่านหิน',            'Coal',            1, 'กก.',   16),
-  (1, 'FUEL_BIOMASS',   'เชื้อเพลิงชีวมวล',  'Biomass Fuel',    1, 'กก.',   17),
-  (2, 'MOBILE_ROAD',    'ยานพาหนะทางถนน',   'Road Transport',  1, 'ลิตร',  21),
-  (2, 'MOBILE_AIR',     'การเดินทางทางอากาศ', 'Air Travel',     1, 'km',    22),
-  (2, 'MOBILE_SHIP',    'การขนส่งทางน้ำ',   'Water Transport', 1, 'ลิตร',  23),
-  (5, 'ELEC_GRID_TH',   'ไฟฟ้าจากระบบสายส่ง (ไทย)', 'Thailand Grid Electricity', 2, 'kWh', 51),
-  (5, 'ELEC_RENEWABLE',  'ไฟฟ้าพลังงานหมุนเวียน',    'Renewable Electricity',     2, 'kWh', 52);
-
-INSERT INTO emission_factors (
-  source_id, category_id, gas_id,
-  activity_name_th, activity_name_en,
-  ef_value, ef_unit, ef_unit_numerator, ef_unit_denominator,
-  region, is_default, effective_from, notes
-) VALUES (
-  1,
-  (SELECT category_id FROM ef_categories WHERE category_code = 'ELEC_GRID_TH'),
-  1,
-  'ไฟฟ้าจากระบบสายส่งแห่งชาติ (ไทย)',
-  'Thailand National Grid Electricity',
-  0.5813, 'kgCO2/kWh', 'kgCO2', 'kWh',
-  'Thailand', 1, '2020-01-01',
-  'ค่า EF ไฟฟ้า TGO AR5 ปี 2020'
-);
-
-INSERT INTO emission_factors (
-  source_id, category_id, gas_id,
-  activity_name_th, activity_name_en,
-  ef_value, ef_unit, ef_unit_numerator, ef_unit_denominator,
-  heating_value, heating_unit, is_default, effective_from
-) VALUES (
-  1,
-  (SELECT category_id FROM ef_categories WHERE category_code = 'FUEL_DIESEL'),
-  1,
-  'น้ำมันดีเซล', 'Diesel',
-  2.6580, 'kgCO2/liter', 'kgCO2', 'liter',
-  35.8, 'MJ/liter', 1, '2015-01-01'
-);
-
-INSERT INTO emission_factors (
-  source_id, category_id, gas_id,
-  activity_name_th, activity_name_en,
-  ef_value, ef_unit, ef_unit_numerator, ef_unit_denominator,
-  is_default, effective_from
-) VALUES
-  (1, (SELECT category_id FROM ef_categories WHERE category_code = 'FUEL_DIESEL'), 2,
-   'น้ำมันดีเซล', 'Diesel', 0.000126, 'kgCH4/liter', 'kgCH4', 'liter', 1, '2015-01-01'),
-  (1, (SELECT category_id FROM ef_categories WHERE category_code = 'FUEL_DIESEL'), 3,
-   'น้ำมันดีเซล', 'Diesel', 0.0000126, 'kgN2O/liter', 'kgN2O', 'liter', 1, '2015-01-01'),
-  (1, (SELECT category_id FROM ef_categories WHERE category_code = 'FUEL_GASOLINE'), 1,
-   'น้ำมันเบนซิน', 'Gasoline', 2.3558, 'kgCO2/liter', 'kgCO2', 'liter', 1, '2015-01-01'),
-  (1, (SELECT category_id FROM ef_categories WHERE category_code = 'FUEL_LPG'), 1,
-   'LPG', 'LPG', 2.9942, 'kgCO2/kg', 'kgCO2', 'kg', 1, '2015-01-01');
-
-CREATE OR REPLACE VIEW ef_lookup AS
-SELECT
-  ef.ef_id,
-  es.source_code,
-  es.source_name_th  AS source_th,
-  es.source_type,
-  ec.category_code,
-  ec.name_th          AS category_th,
-  ec.unit_activity,
-  gt.gas_code,
-  gt.gas_name,
-  ef.activity_name_th,
-  ef.ef_value,
-  ef.ef_unit,
-  ef.ef_unit_numerator,
-  ef.ef_unit_denominator,
-  ef.region,
-  ef.is_default,
-  ef.tier_level,
-  ef.effective_from,
-  ef.effective_until,
-  pc.name_th          AS parent_category_th
-FROM emission_factors ef
-  JOIN ef_sources   es ON es.source_id   = ef.source_id
-  JOIN ef_categories ec ON ec.category_id = ef.category_id
-  JOIN gas_types    gt ON gt.gas_id      = ef.gas_id
-  LEFT JOIN ef_categories pc ON pc.category_id = ec.parent_id
-WHERE ef.is_active = 1
-  AND es.is_active = 1
-  AND (ef.effective_until IS NULL OR ef.effective_until >= CURDATE());
-
--- =============================================================================
--- สรุปความต่างจาก control_z เดิม
---   • ฐานข้อมูลแยกชื่อ control_z_v2
---   • collect_information + reporting_periods รองรับ granularity / reporting_year
---   • activity_entries เก็บ JSON รายการ Scope 1–3
---   • category มี category_code + seed 15 หมวด Scope 3
---   • category_anwser มีฟิลด์ Material Topic (ghg_percent, material_total, …)
---   • รวม gas_types, gwp_values และตาราง EF ครบ
--- =============================================================================
+-- Views สร้างใน 04-ef-frontend-bridge.sql หลังมีข้อมูล EF + bridge seed

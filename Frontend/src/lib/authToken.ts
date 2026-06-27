@@ -1,5 +1,11 @@
-export const CONTROL_Z_ACCESS_TOKEN_KEY = "control-z-access-token"
-export const CONTROL_Z_ACCESS_TOKEN_EXPIRES_AT_KEY = "control-z-access-token-expires-at"
+const CONTROL_Z_ACCESS_TOKEN_KEY = "control-z-access-token"
+const CONTROL_Z_ACCESS_TOKEN_EXPIRES_AT_KEY = "control-z-access-token-expires-at"
+const CONTROL_Z_SESSION_ID_KEY = "control-z-session-id"
+
+export function getSessionId(): string | null {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem(CONTROL_Z_SESSION_ID_KEY)
+}
 
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null
@@ -28,12 +34,24 @@ export function setAccessToken(token: string | null): void {
   else {
     localStorage.removeItem(CONTROL_Z_ACCESS_TOKEN_KEY)
     localStorage.removeItem(CONTROL_Z_ACCESS_TOKEN_EXPIRES_AT_KEY)
+    localStorage.removeItem(CONTROL_Z_SESSION_ID_KEY)
   }
 }
 
-export function setSessionToken(token: string, expiresInSeconds?: number | null): void {
+export function setSessionId(sessionId: string | null): void {
+  if (typeof window === "undefined") return
+  if (sessionId) localStorage.setItem(CONTROL_Z_SESSION_ID_KEY, sessionId)
+  else localStorage.removeItem(CONTROL_Z_SESSION_ID_KEY)
+}
+
+export function setSessionToken(
+  token: string,
+  expiresInSeconds?: number | null,
+  sessionId?: string | null,
+): void {
   if (typeof window === "undefined") return
   localStorage.setItem(CONTROL_Z_ACCESS_TOKEN_KEY, token)
+  setSessionId(sessionId ?? null)
   if (typeof expiresInSeconds === "number" && Number.isFinite(expiresInSeconds) && expiresInSeconds > 0) {
     const expiresAt = Date.now() + Math.floor(expiresInSeconds * 1000)
     localStorage.setItem(CONTROL_Z_ACCESS_TOKEN_EXPIRES_AT_KEY, String(expiresAt))

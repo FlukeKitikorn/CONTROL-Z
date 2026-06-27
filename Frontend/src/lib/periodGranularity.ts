@@ -48,6 +48,7 @@ function endOfYear(d: Date): Date {
   return new Date(d.getFullYear(), 11, 31, 23, 59, 59, 999)
 }
 
+/* REFACTOR(CANDIDATE-REMOVAL): ใช้เฉพาะ buildRecentPeriodRounds ที่คอมเมนต์แล้ว
 function toIsoDate(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
@@ -69,6 +70,7 @@ function shiftAnchor(anchor: Date, granularity: PeriodGranularity, offset: numbe
   d.setFullYear(d.getFullYear() + offset)
   return d
 }
+*/
 
 export function periodRangeForAnchor(granularity: PeriodGranularity, anchor = new Date()): { start: Date; end: Date } {
   if (granularity === "daily") {
@@ -97,6 +99,7 @@ export function formatPeriodRoundLabel(granularity: PeriodGranularity, start: Da
   return `${fmt.format(start)} – ${fmt.format(end)}`
 }
 
+/* REFACTOR(CANDIDATE-REMOVAL): ไม่มี caller — Phase A dead-code audit
 export function buildRecentPeriodRounds(granularity: PeriodGranularity, count = 8, anchor = new Date()): PeriodRound[] {
   const out: PeriodRound[] = []
   for (let i = 0; i < count; i++) {
@@ -108,6 +111,7 @@ export function buildRecentPeriodRounds(granularity: PeriodGranularity, count = 
   }
   return out
 }
+*/
 
 export function getPreferredGranularity(orgId: string): PeriodGranularity {
   if (typeof localStorage === "undefined") return "monthly"

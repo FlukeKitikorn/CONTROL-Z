@@ -3,7 +3,7 @@ import { Card, Input } from "antd"
 import type { ReactNode } from "react"
 
 /** การ์ดตารางมาตรฐานโซนแอดมิน — สอดคล้องหน้าประกาศ */
-export const adminStandardTableCardProps = {
+const adminStandardTableCardProps = {
   bordered: false as const,
   className: "shadow-sm",
 }

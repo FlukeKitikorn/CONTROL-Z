@@ -24,6 +24,7 @@ from app.schemas.auth import (
     UserPublic,
 )
 from app.services import email_service
+from app.services.session_store import create_session, sessions_enabled
 
 # ตรงกับ Frontend userProfileComplete — ผู้ใช้ต้องแทนที่หลังล็อกอิน
 _REGISTER_PLACEHOLDER = "—"
@@ -66,16 +67,24 @@ def login(session: Session, *, email: str, password: str) -> TokenResponse:
             detail="อีเมลหรือรหัสผ่านไม่ถูกต้อง",
         )
     role = role_from_privilege(priv)
+    session_id = create_session(
+        user_id=user.user_id,
+        role=role,
+        organization_id=user.organization_id,
+        ttl_seconds=settings.session_ttl_seconds,
+    )
     token = create_access_token(
         user_id=user.user_id,
         role=role,
         organization_id=user.organization_id,
+        session_id=session_id if sessions_enabled() else None,
     )
     return TokenResponse(
         access_token=token,
         token_type="bearer",
         expires_in=settings.access_token_expire_minutes * 60,
         user=user_to_public(user, priv),
+        session_id=session_id if sessions_enabled() else None,
     )
 
 

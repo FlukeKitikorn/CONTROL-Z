@@ -1,5 +1,6 @@
 import { apiUrl } from "@/lib/apiBase"
 import { clearSessionToken, getAccessToken, isSessionExpired } from "@/lib/authToken"
+import { apiFetchCredentials, usesBearerToken } from "@/lib/sessionConfig"
 import { useAuthStore } from "@/store/useAuthStore"
 
 export class ApiError extends Error {
@@ -33,7 +34,7 @@ export type ApiRequestOptions = Omit<RequestInit, "body"> & {
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const token = getAccessToken()
+  const token = usesBearerToken() ? getAccessToken() : null
   if (token && isSessionExpired()) {
     clearSessionToken()
     useAuthStore.getState().logout()
@@ -51,6 +52,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     ...options,
     headers,
     body,
+    credentials: apiFetchCredentials(),
   })
 
   if (res.status === 204) {

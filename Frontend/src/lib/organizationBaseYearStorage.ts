@@ -27,6 +27,7 @@ function emitUpdated(orgId: string) {
   window.dispatchEvent(new CustomEvent(CONTROL_Z_BASE_YEAR_UPDATED, { detail: { orgId } }))
 }
 
+/* REFACTOR(CANDIDATE-REMOVAL): ใช้เฉพาะ appendBaseYearSnapshotFromFormValues ที่คอมเมนต์แล้ว
 function serializeBoundaryDate(v: unknown): string | undefined {
   if (v == null) return undefined
   if (typeof v === "string") return v
@@ -35,6 +36,7 @@ function serializeBoundaryDate(v: unknown): string | undefined {
   if (typeof o.format === "function") return o.format("YYYY-MM-DD")
   return undefined
 }
+*/
 
 export function loadBaseYearSnapshots(orgId: string): BaseYearSnapshot[] {
   if (typeof localStorage === "undefined") return []
@@ -97,6 +99,7 @@ export function appendBaseYearSnapshot(
 }
 
 /** ดึงค่าจากฟอร์มกรอกข้อมูล (ขั้นข้อมูลทั่วไป) แล้วบันทึก snapshot */
+/* REFACTOR(CANDIDATE-REMOVAL): ไม่มี caller — Phase A dead-code audit
 export function appendBaseYearSnapshotFromFormValues(
   orgId: string,
   values: Record<string, unknown>,
@@ -128,6 +131,7 @@ export function appendBaseYearSnapshotFromFormValues(
     unityLabel: unityLabelResolver?.(unity),
   })
 }
+*/
 
 export function getPreferredBaseYearYear(orgId: string, latest: BaseYearSnapshot | null): number | null {
   if (typeof localStorage === "undefined") return latest ? defaultYearFromSnapshot(latest) : null

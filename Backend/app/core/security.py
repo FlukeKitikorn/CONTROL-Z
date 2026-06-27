@@ -17,7 +17,13 @@ def verify_password(plain: str, password_hash: str) -> bool:
         return False
 
 
-def create_access_token(*, user_id: int, role: str, organization_id: int) -> str:
+def create_access_token(
+    *,
+    user_id: int,
+    role: str,
+    organization_id: int,
+    session_id: str | None = None,
+) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
     payload = {
         "sub": str(user_id),
@@ -25,6 +31,8 @@ def create_access_token(*, user_id: int, role: str, organization_id: int) -> str
         "org": organization_id,
         "exp": int(expire.timestamp()),
     }
+    if session_id:
+        payload["jti"] = session_id
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 

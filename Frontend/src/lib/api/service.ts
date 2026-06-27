@@ -8,7 +8,6 @@ import type {
   CalculationRunResponse,
   CollectInformationRead,
   AnnualReportingBundleRead,
-  EfResolveRow,
   EfUiOptionRead,
   GhgtFormRead,
   GwpRead,
@@ -19,23 +18,36 @@ import type {
   PaginatedUsers,
   PointsConsiderRead,
   ReportBundleResponse,
-  Scope3EfCatalogRead,
 } from "@/lib/api/types"
 
 export async function getMe(): Promise<MeResponse> {
   return apiRequest<MeResponse>("/api/v1/me")
 }
 
+export async function getAuthSession(): Promise<{
+  authenticated: boolean
+  user: MeResponse | null
+  sessions_server_side: boolean
+}> {
+  return apiRequest("/api/v1/auth/session")
+}
+
+export async function postAuthLogout(): Promise<void> {
+  await apiRequest<void>("/api/v1/auth/logout", { method: "POST" })
+}
+
 export async function patchMe(body: Record<string, unknown>): Promise<MeResponse> {
   return apiRequest<MeResponse>("/api/v1/me", { method: "PATCH", json: body })
 }
 
+/* REFACTOR(CANDIDATE-REMOVAL): API client ยังไม่มี caller — Phase A dead-code audit
 export async function patchMePassword(current_password: string, new_password: string): Promise<MeResponse> {
   return apiRequest<MeResponse>("/api/v1/me/password", {
     method: "PATCH",
     json: { current_password, new_password },
   })
 }
+*/
 
 export async function postMeAvatar(file: File): Promise<MeResponse> {
   const token = getAccessToken()
@@ -57,14 +69,17 @@ export async function getOrganization(orgId: number): Promise<OrganizationRead> 
   return apiRequest<OrganizationRead>(`/api/v1/organizations/${orgId}`)
 }
 
+/* REFACTOR(CANDIDATE-REMOVAL): API client ยังไม่มี caller — Phase A dead-code audit
 export async function patchOrganization(orgId: number, body: Record<string, unknown>): Promise<OrganizationRead> {
   return apiRequest<OrganizationRead>(`/api/v1/organizations/${orgId}`, { method: "PATCH", json: body })
 }
+*/
 
 export async function listCollectInformation(orgId: number): Promise<CollectInformationRead[]> {
   return apiRequest<CollectInformationRead[]>(`/api/v1/organizations/${orgId}/collect-information`)
 }
 
+/* REFACTOR(CANDIDATE-REMOVAL): API client ยังไม่มี caller — Phase A dead-code audit
 export async function createCollectInformation(
   orgId: number,
   body: {
@@ -81,6 +96,7 @@ export async function createCollectInformation(
     json: body,
   })
 }
+*/
 
 export async function getCalculationLatest(orgId: number): Promise<CalculationRunResponse> {
   return apiRequest<CalculationRunResponse>(`/api/v1/organizations/${orgId}/calculations/latest`)
@@ -133,6 +149,7 @@ export async function adminListOrganizations(): Promise<OrganizationRead[]> {
   return apiRequest<OrganizationRead[]>("/api/v1/admin/organizations")
 }
 
+/* REFACTOR(CANDIDATE-REMOVAL): API client ยังไม่มี caller — Phase A dead-code audit
 export async function adminCreateOrganization(body: {
   name_of_agency: string
   organization_name: string
@@ -147,6 +164,7 @@ export async function adminCreateOrganization(body: {
 }): Promise<OrganizationRead> {
   return apiRequest<OrganizationRead>("/api/v1/admin/organizations", { method: "POST", json: body })
 }
+*/
 
 export type AdminUserPatchBody = {
   organization_id?: number
@@ -231,6 +249,7 @@ export async function listEfUiOptions(params?: {
   return apiRequest<EfUiOptionRead[]>(`/api/v1/reference/ef-ui-options${qs ? `?${qs}` : ""}`)
 }
 
+/* REFACTOR(CANDIDATE-REMOVAL): API client ยังไม่มี caller — Phase A dead-code audit
 export async function resolveEf(params: {
   scope_scid: number
   ui_context: string
@@ -252,6 +271,7 @@ export async function listScope3EfCatalog(scope3CategoryCode?: string): Promise<
     : ""
   return apiRequest<Scope3EfCatalogRead[]>(`/api/v1/reference/scope3-ef-catalog${q}`)
 }
+*/
 
 export async function createGwp(body: { subject: string; value: string }): Promise<GwpRead> {
   return apiRequest<GwpRead>("/api/v1/reference/gwp", { method: "POST", json: body })
