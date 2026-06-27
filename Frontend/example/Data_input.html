@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Control Z - Data Input</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-container": "#94e8cb",
+                        "inverse-surface": "#2d3135",
+                        "surface-variant": "#dfe3e8",
+                        "on-tertiary-fixed-variant": "#881f00",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#3e4944",
+                        "on-secondary-fixed-variant": "#384b3d",
+                        "surface-container-highest": "#dfe3e8",
+                        "surface-container": "#ebeef4",
+                        "secondary-container": "#cfe5d2",
+                        "on-surface": "#181c20",
+                        "on-primary-fixed": "#002118",
+                        "on-secondary-fixed": "#0d1f14",
+                        "on-background": "#181c20",
+                        "on-tertiary-fixed": "#3b0800",
+                        "tertiary": "#871f00",
+                        "tertiary-fixed": "#ffdbd1",
+                        "surface": "#f7f9ff",
+                        "primary-fixed-dim": "#82d7ba",
+                        "tertiary-fixed-dim": "#ffb5a1",
+                        "inverse-on-surface": "#eef1f7",
+                        "outline-variant": "#bec9c3",
+                        "surface-bright": "#f7f9ff",
+                        "inverse-primary": "#82d7ba",
+                        "on-primary": "#ffffff",
+                        "on-secondary-container": "#536758",
+                        "tertiary-container": "#b12c01",
+                        "primary-fixed": "#9ef3d6",
+                        "primary": "#00513f",
+                        "surface-container-high": "#e5e8ee",
+                        "error": "#ba1a1a",
+                        "surface-container-low": "#f1f4fa",
+                        "secondary-fixed-dim": "#b6ccba",
+                        "secondary-fixed": "#d2e8d5",
+                        "surface-container-lowest": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "background": "#f7f9ff",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed-variant": "#00513f",
+                        "on-tertiary-container": "#ffcdc0",
+                        "on-error": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "outline": "#6f7a74",
+                        "secondary": "#4f6354",
+                        "primary-container": "#006b54",
+                        "surface-dim": "#d7dae0",
+                        "surface-tint": "#016b54"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .clinical-gradient {
+            background: linear-gradient(135deg, #00513f 0%, #006b54 100%);
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(24px);
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm flex justify-between items-center px-6 py-3 h-16">
+<div class="flex items-center gap-8">
+<span class="text-xl font-extrabold text-emerald-900 dark:text-emerald-400 tracking-tighter font-headline">Control Z</span>
+<nav class="hidden md:flex gap-6">
+<a class="text-slate-500 font-medium hover:bg-slate-200/50 transition-colors px-3 py-1 rounded-lg" href="#">Dashboard</a>
+<a class="text-emerald-900 font-bold border-b-2 border-emerald-900 px-3 py-1" href="#">Data Input</a>
+<a class="text-slate-500 font-medium hover:bg-slate-200/50 transition-colors px-3 py-1 rounded-lg" href="#">Analytics</a>
+<a class="text-slate-500 font-medium hover:bg-slate-200/50 transition-colors px-3 py-1 rounded-lg" href="#">Admin</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="bg-surface-container-low border-none rounded-full pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary w-64" placeholder="Search data..." type="text"/>
+</div>
+<button class="p-2 hover:bg-slate-200/50 rounded-full transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+</button>
+<button class="p-2 hover:bg-slate-200/50 rounded-full transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant">
+<img alt="User profile" data-alt="professional headshot of a corporate sustainability officer in a bright office environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzIwpsTmptnvE2x3GaA2ZSY5_IQ6BssZyBdweELGpzScl7t1256jHiircpJQxHB7KZ3j5zi0zA7EAY0eNNwIg5nF-f_TL2-3oiUClpPDxopJX3YignAwRIBkg-gRNWZnjPnjUVh93ppRO1x_CWU3swASLtdJe6vqsASLqwKB-Yrwbjf4tzSsy7RbLHpDK0ryB66UXUEnhQTc9_9nrsUKxvh0ljp8UEy7SzMeBWG9uwgfD9XZ5M49tqgAMuRab5BB6XyK2gsfLVpbWD"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-slate-100 dark:bg-slate-950 flex flex-col py-4 gap-2 hidden lg:flex">
+<div class="px-6 mb-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">eco</span>
+</div>
+<div>
+<p class="font-headline font-bold text-emerald-900 text-sm">Global Carbon Corp</p>
+<p class="text-xs text-slate-500">Standard Account</p>
+</div>
+</div>
+</div>
+<div class="flex-1 space-y-1">
+<a class="text-slate-600 mx-2 flex items-center gap-3 px-4 py-3 hover:bg-slate-200 rounded-lg transition-all font-semibold text-sm" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+<a class="bg-emerald-100 text-emerald-900 rounded-lg mx-2 flex items-center gap-3 px-4 py-3 font-semibold text-sm translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined">edit_document</span>
+                Data Input
+            </a>
+<a class="text-slate-600 mx-2 flex items-center gap-3 px-4 py-3 hover:bg-slate-200 rounded-lg transition-all font-semibold text-sm" href="#">
+<span class="material-symbols-outlined">analytics</span>
+                Analytics
+            </a>
+<a class="text-slate-600 mx-2 flex items-center gap-3 px-4 py-3 hover:bg-slate-200 rounded-lg transition-all font-semibold text-sm" href="#">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+                Admin
+            </a>
+</div>
+<div class="border-t border-slate-200 pt-4">
+<a class="text-slate-600 mx-2 flex items-center gap-3 px-4 py-2 hover:bg-slate-200 rounded-lg transition-all text-xs font-medium" href="#">
+<span class="material-symbols-outlined text-sm">help_outline</span>
+                Support
+            </a>
+<a class="text-slate-600 mx-2 flex items-center gap-3 px-4 py-2 hover:bg-slate-200 rounded-lg transition-all text-xs font-medium" href="#">
+<span class="material-symbols-outlined text-sm">logout</span>
+                Log out
+            </a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="lg:ml-64 pt-24 px-6 pb-12 min-h-screen bg-surface">
+<div class="max-w-4xl mx-auto">
+<!-- Header Section with Progress -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
+<div>
+<h1 class="text-4xl font-headline font-extrabold text-on-surface tracking-tight mb-2">Environmental Inventory</h1>
+<p class="text-on-surface-variant flex items-center gap-2">
+                        Reporting Period: FY 2023 
+                        <span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-medium text-primary">Direct Operations</span>
+</p>
+</div>
+<div class="flex flex-col items-end gap-2 w-full md:w-64">
+<div class="flex justify-between w-full text-xs font-bold font-label uppercase tracking-wider text-on-surface-variant">
+<span>Overall Progress</span>
+<span>40%</span>
+</div>
+<div class="w-full h-2 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full clinical-gradient" style="width: 40%"></div>
+</div>
+</div>
+</div>
+<!-- Carbon Stepper -->
+<div class="flex items-center gap-0 mb-12 overflow-x-auto pb-4 no-scrollbar">
+<div class="flex items-center">
+<div class="flex flex-col items-center gap-2 min-w-[120px]">
+<div class="w-10 h-10 rounded-full flex items-center justify-center bg-primary-fixed text-on-primary-fixed">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Base Data</span>
+</div>
+<div class="h-[2px] w-12 bg-primary-fixed mx-2"></div>
+</div>
+<div class="flex items-center">
+<div class="flex flex-col items-center gap-2 min-w-[120px]">
+<div class="relative">
+<div class="absolute inset-0 bg-primary/20 rounded-full animate-pulse scale-150"></div>
+<div class="w-10 h-10 rounded-full flex items-center justify-center bg-primary text-on-primary relative z-10">
+<span class="font-headline font-extrabold">2</span>
+</div>
+</div>
+<span class="text-[10px] font-bold text-primary uppercase tracking-widest">Scope 1</span>
+</div>
+<div class="h-[2px] w-12 bg-surface-container-high mx-2"></div>
+</div>
+<div class="flex items-center opacity-50">
+<div class="flex flex-col items-center gap-2 min-w-[120px]">
+<div class="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-high text-on-surface-variant">
+<span class="font-headline font-extrabold">3</span>
+</div>
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Scope 2</span>
+</div>
+<div class="h-[2px] w-12 bg-surface-container-high mx-2"></div>
+</div>
+<div class="flex items-center opacity-50">
+<div class="flex flex-col items-center gap-2 min-w-[120px]">
+<div class="w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-high text-on-surface-variant">
+<span class="font-headline font-extrabold">4</span>
+</div>
+<span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Scope 3</span>
+</div>
+</div>
+</div>
+<!-- Main Input Form Card -->
+<div class="bg-surface-container-lowest rounded-xl p-8 shadow-sm relative overflow-hidden">
+<div class="absolute top-0 right-0 p-8">
+<div class="group relative">
+<span class="material-symbols-outlined text-outline cursor-help">info</span>
+<div class="absolute right-0 bottom-full mb-2 w-64 p-3 bg-inverse-surface text-inverse-on-surface text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+<strong>Scope 1:</strong> Direct greenhouse gas emissions from sources owned or controlled by your company, such as stationary combustion or mobile fleet.
+                        </div>
+</div>
+</div>
+<div class="mb-8">
+<span class="text-xs font-bold text-primary px-3 py-1 bg-primary-fixed rounded-full mb-4 inline-block">Step 2: Direct Emissions</span>
+<h2 class="text-2xl font-headline font-bold text-on-surface">Scope 1 (Direct Emissions)</h2>
+<p class="text-on-surface-variant mt-2 max-w-2xl">Enter all fuel consumed by stationary equipment and company-owned vehicle fleets during this reporting cycle.</p>
+</div>
+<form class="space-y-10">
+<!-- Fuel Usage Section -->
+<section>
+<div class="flex items-center gap-3 mb-6">
+<span class="material-symbols-outlined text-primary">local_fire_department</span>
+<h3 class="font-headline font-bold text-lg text-on-surface">Stationary Fuel Combustion</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
+<div class="md:col-span-5">
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Fuel Type</label>
+<select class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary">
+<option>Natural Gas</option>
+<option>Heating Oil</option>
+<option>Propane (LPG)</option>
+<option>Diesel (Stationary)</option>
+</select>
+</div>
+<div class="md:col-span-4">
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Amount</label>
+<input class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary" placeholder="0.00" type="number"/>
+</div>
+<div class="md:col-span-3">
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Unit</label>
+<select class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary">
+<option>Therm</option>
+<option>kWh</option>
+<option>m³</option>
+<option>Gallons</option>
+</select>
+</div>
+</div>
+</section>
+<!-- Company Vehicles Section -->
+<section>
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">directions_car</span>
+<h3 class="font-headline font-bold text-lg text-on-surface">Company Owned Vehicles</h3>
+</div>
+<button class="text-primary text-sm font-bold flex items-center gap-1 hover:underline" type="button">
+<span class="material-symbols-outlined text-base">add_circle</span>
+                                Add Vehicle Type
+                            </button>
+</div>
+<div class="space-y-4">
+<!-- Row 1 -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+<div class="md:col-span-5">
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Vehicle Category</label>
+<div class="relative">
+<select class="w-full bg-surface-container-highest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary">
+<option>Passenger Car (Petrol)</option>
+<option>Passenger Car (Diesel)</option>
+<option>Light Duty Truck</option>
+<option>HGV / Heavy Duty</option>
+</select>
+</div>
+</div>
+<div class="md:col-span-4">
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Distance / Fuel</label>
+<input class="w-full bg-surface-container-highest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary" type="number" value="12450"/>
+</div>
+<div class="md:col-span-2">
+<label class="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">Unit</label>
+<select class="w-full bg-surface-container-highest border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary">
+<option>Miles</option>
+<option>Kilometers</option>
+<option>Liters</option>
+</select>
+</div>
+<div class="md:col-span-1 flex justify-center">
+<button class="p-2 text-outline-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined">delete_outline</span>
+</button>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-end opacity-60">
+<div class="md:col-span-5">
+<input class="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm" disabled="" type="text" value="Executive Fleet"/>
+</div>
+<div class="md:col-span-4">
+<input class="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm" disabled="" placeholder="4200" type="number"/>
+</div>
+<div class="md:col-span-2">
+<select class="w-full bg-surface-container-low border-none rounded-lg p-3 text-sm" disabled="">
+<option>Liters</option>
+</select>
+</div>
+<div class="md:col-span-1 flex justify-center">
+<button class="p-2 text-outline-variant">
+<span class="material-symbols-outlined">delete_outline</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer Actions -->
+<div class="pt-8 border-t border-surface-container flex flex-col sm:flex-row items-center justify-between gap-4">
+<div class="flex items-center gap-2 text-on-surface-variant text-sm group cursor-pointer">
+<span class="material-symbols-outlined text-sm">auto_awesome</span>
+<span>Calculated Impact: <strong class="text-on-surface">14.2 tCO2e</strong></span>
+<div class="group-hover:block hidden absolute bg-inverse-surface text-inverse-on-surface p-2 rounded text-[10px] mt-12">Preliminary estimate based on standard DEFRA factors.</div>
+</div>
+<div class="flex items-center gap-4 w-full sm:w-auto">
+<button class="flex-1 sm:flex-none px-6 py-3 rounded-full border border-outline-variant text-on-surface-variant font-bold text-sm hover:bg-surface-container transition-colors" type="button">
+                                Save as Draft
+                            </button>
+<button class="flex-1 sm:flex-none clinical-gradient text-on-primary px-8 py-3 rounded-full font-bold text-sm shadow-lg hover:shadow-primary/20 transition-all flex items-center justify-center gap-2" type="submit">
+                                Next Step
+                                <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</form>
+</div>
+<!-- Bottom Insight Bento -->
+<div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-primary-container/10 p-6 rounded-xl">
+<span class="material-symbols-outlined text-primary mb-3">lightbulb</span>
+<h4 class="font-bold text-on-surface text-sm mb-1">Scope 1 Insight</h4>
+<p class="text-xs text-on-surface-variant leading-relaxed">Direct emissions typically account for 15-20% of service-based organizations' total footprints.</p>
+</div>
+<div class="bg-surface-container-low p-6 rounded-xl md:col-span-2 flex items-center gap-6">
+<div class="w-20 h-20 shrink-0 bg-white rounded-lg p-2 shadow-sm">
+<img alt="environmental report graphic" class="w-full h-full object-cover rounded" data-alt="close-up of a high-quality printed sustainability report with minimalist charts and professional typography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNZ_Gj3D0LohMd_YCoNwIfv4jZK_Mwtk7Pn41a_Vjx5WHKX4jvt0ZEST-MaWRc2OKmfwLpGETs8cSd0TN0mABfz8Ry1wyZke4R-npBcw-ESvrAAzf9vKyPxqkgvwYLC2uFxx2yl7IouIDU4sbe9vWYg5h3I3zJ9TOafQ-DLExTxVkkSBHUAi8DebUryKk1-Cfa38SMLLImRm8U6z8wY7rBSxY81cIdJCXGg8b9C0M0gadJkgnN9DyWI31hEK7zJxX3QVubDtG1D8rf"/>
+</div>
+<div>
+<h4 class="font-bold text-on-surface text-sm mb-1">GHG Protocol Compliance</h4>
+<p class="text-xs text-on-surface-variant leading-relaxed">Your data entry follows the Greenhouse Gas Protocol Corporate Standard for verified reporting.</p>
+<a class="text-primary text-[10px] font-extrabold uppercase tracking-widest mt-2 inline-block" href="#">View Guidelines</a>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

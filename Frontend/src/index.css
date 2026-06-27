@@ -1,111 +1,456 @@
+@import "tailwindcss";
+
+/* Utility สำหรับใช้ชุด Chakra Petch ที่นำเข้าไว้ */
+[class^="chakra-petch"] {
+  font-family: "Chakra Petch", "Noto Sans Thai", sans-serif;
+}
+
+.chakra-petch-light {
+  font-weight: 300;
+}
+.chakra-petch-regular {
+  font-weight: 400;
+}
+.chakra-petch-medium {
+  font-weight: 500;
+}
+.chakra-petch-semibold {
+  font-weight: 600;
+}
+.chakra-petch-bold {
+  font-weight: 700;
+}
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
+  font-family: "Chakra Petch", "Noto Sans Thai", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  background: #f7f9ff;
+  color: #181c20;
+  font-family: "Chakra Petch", "Noto Sans Thai", system-ui, sans-serif;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+#root {
+  min-height: 100dvh;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+.carbon-card {
+  @apply rounded-xl border border-gray-200 bg-white/95 shadow-sm dark:border-gray-700 dark:bg-gray-800/85;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
+.font-headline {
+  font-family: "Chakra Petch", "Noto Sans Thai", system-ui, sans-serif;
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
   display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
-code {
+.signature-gradient {
+  background: linear-gradient(135deg, #00513f 0%, #006b54 100%);
+}
+
+/* ——— Page header actions (shared) ——— */
+.page-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.page-header-btn.ant-btn {
+  height: 36px;
+  padding-inline: 14px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.page-header-btn--secondary.ant-btn {
+  border-color: #99f6e4 !important;
+  color: #0f766e !important;
+  background: #fff !important;
+}
+
+.page-header-btn--secondary.ant-btn:not(:disabled):hover {
+  border-color: #0d9488 !important;
+  color: #00513f !important;
+  background: #f0fdfa !important;
+}
+
+.page-header-btn--primary.ant-btn {
+  box-shadow: 0 4px 14px -4px rgba(0, 81, 63, 0.45);
+}
+
+.page-header-btn--primary.ant-btn:not(:disabled):hover {
+  box-shadow: 0 6px 18px -4px rgba(0, 81, 63, 0.55);
+  filter: brightness(1.03);
+}
+
+/* ——— Dashboard virtualize layout (Control Z teal) ——— */
+.dash-page {
+  --dash-ink: #0f172a;
+  --dash-muted: #64748b;
+  --dash-surface: #ffffff;
+  --dash-teal: #0d9488;
+  --dash-teal-deep: #00513f;
+  --dash-teal-mid: #0f766e;
+  --dash-teal-light: #ccfbf1;
+  --dash-hero: linear-gradient(135deg, #00513f 0%, #0d9488 48%, #14b8a6 100%);
+}
+
+.dash-hero-card {
+  background: var(--dash-hero);
+  border-radius: 1.25rem;
+  color: #fff;
+  box-shadow: 0 18px 40px -12px rgba(0, 81, 63, 0.35);
+}
+
+.dash-metric-card {
+  border-radius: 1.25rem;
+  background: var(--dash-surface);
+  border: 1px solid rgba(153, 246, 228, 0.45);
+  box-shadow: 0 4px 24px -8px rgba(15, 118, 110, 0.1);
+}
+
+.dash-btn-outline {
+  height: 36px;
+  padding-inline: 14px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 10px;
+  border-color: #99f6e4 !important;
+  color: #0f766e !important;
+  background: #fff !important;
+}
+
+.dash-btn-outline:hover {
+  border-color: #0d9488 !important;
+  color: #00513f !important;
+  background: #f0fdfa !important;
+}
+
+.dash-trend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.dash-trend-pill--up {
+  background: rgba(254, 226, 226, 0.95);
+  color: #b91c1c;
+}
+
+.dash-trend-pill--down {
+  background: rgba(204, 251, 241, 0.95);
+  color: #0f766e;
+}
+
+.dash-trend-pill--neutral {
+  background: rgba(241, 245, 249, 0.95);
+  color: #64748b;
+}
+
+.dash-panel {
+  border-radius: 1.25rem;
+  background: var(--dash-surface);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 4px 24px -8px rgba(15, 23, 42, 0.06);
+}
+
+.dash-filter-chip {
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.78rem;
+  color: #475569;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.dash-filter-chip:hover {
+  border-color: #99f6e4;
+  color: #0f766e;
+}
+
+.dash-chart-tabs .ant-segmented {
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 10px;
+}
+
+.dash-chart-tabs .ant-segmented-item-selected {
+  background: #fff !important;
+  color: #00513f !important;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 81, 63, 0.1);
+}
+
+.dash-tag-teal {
+  border-radius: 9999px !important;
+  background: #f0fdfa !important;
+  border: 1px solid #99f6e4 !important;
+  color: #0f766e !important;
+}
+
+.auth-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+  background: #f3f5fa;
+}
+
+@media (min-width: 980px) {
+  .auth-shell {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.auth-hero {
+  display: none;
+  position: relative;
+  overflow: hidden;
+  min-height: 100dvh;
+  background-color: #0a3f35;
+  /* วางไฟล์ที่ public/images/bg-auth.jpg */
+  background-image: url("/images/bg-auth.jpg");
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+@media (min-width: 980px) {
+  .auth-hero {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* .auth-hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(7, 72, 58, 0.55) 0%, rgba(7, 72, 58, 0.78) 45%, rgba(7, 72, 58, 0.88) 100%),
+    radial-gradient(circle at 75% 80%, rgba(39, 174, 120, 0.22), transparent 46%);
+  pointer-events: none;
+} */
+
+.auth-hero-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  flex: 1;
+  width: 100%;
+  padding: 32px 28px;
+  box-sizing: border-box;
+  color: #ecfdf5;
+}
+
+/* กล่องโลโก้อยู่กึ่งกลางคอลัมน์ซ้าย — พื้นที่ด้านบน/ล่างยังเป็น BG เดิมของ .auth-hero */
+.auth-hero-logo-strip {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.auth-hero-logo-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  min-width: min(360px, 92vw);
+  max-width: min(480px, 92%);
+  padding: 28px 40px;
+  border-radius: 20px;
+  /* แผ่นพื้นหลังอ่อน ทำให้โลโก้ตัดกับ bg ภาพถ่ายชัด */
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.97) 0%,
+    rgba(248, 250, 252, 0.95) 100%
+  );
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.04),
+    0 16px 48px rgba(0, 0, 0, 0.14);
+}
+
+.auth-hero-logo-img {
+  display: block;
+  max-height: min(120px, 22vh);
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  /* ให้ขอบโลโก้คม ไม่เบลอจาก glass */
+  image-rendering: auto;
+}
+
+.auth-hero-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 22px;
+  padding: 32px 56px 72px;
+}
+
+.auth-hero-body h1 {
+  margin: 0;
+  font-size: 52px;
+  font-weight: 800;
+}
+
+.auth-hero-body p {
+  max-width: 500px;
+  font-size: 18px;
+  opacity: 0.95;
+}
+
+.auth-hero-grid {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.auth-hero-card {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.auth-hero-card h4 {
+  margin: 0;
   font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+}
+
+.auth-hero-card span {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.auth-form-pane {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-form-wrap {
+  width: 100%;
+  max-width: 420px;
+  background: #f3f5fa;
+}
+
+.auth-form-wrap h2 {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  color: #1f2937;
+}
+
+.auth-form-wrap > p {
+  margin: 6px 0 20px;
+  color: #6b7280;
+}
+
+.auth-form-wrap .ant-form-item-label > label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.auth-primary-btn.ant-btn {
+  background: linear-gradient(135deg, #0d7a5d 0%, #07684f 100%);
+  border: none;
+  height: 44px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+/* —— ล็อกอินผู้ดูแล — โทนเดียวกับ auth หลัก (teal + #f3f5fa) แต่เลย์เอาต์คนละแบบ —— */
+.admin-auth-root {
+  font-family: "Chakra Petch", "Noto Sans Thai", system-ui, sans-serif;
+}
+
+.admin-auth-bg {
+  background:
+    radial-gradient(ellipse 85% 55% at 90% 5%, rgba(20, 184, 166, 0.16), transparent 52%),
+    radial-gradient(ellipse 70% 45% at 5% 95%, rgba(13, 148, 136, 0.14), transparent 48%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(7, 104, 86, 0.04), transparent 55%),
+    linear-gradient(180deg, #f3f5fa 0%, #eef6f4 45%, #f3f5fa 100%);
+}
+
+.admin-auth-card.ant-card {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.03),
+    0 18px 48px rgba(7, 104, 86, 0.1);
+}
+
+.admin-auth-submit.ant-btn.ant-btn-primary {
+  height: 46px;
+  border-radius: 999px;
+  font-weight: 700;
+  border: none;
+  background: linear-gradient(135deg, #0d7a5d 0%, #07684f 100%);
+  box-shadow: 0 4px 16px rgba(7, 104, 86, 0.28);
+}
+
+.admin-auth-submit.ant-btn.ant-btn-primary:hover {
+  background: linear-gradient(135deg, #0f8f6e 0%, #087a5e 100%) !important;
+}
+
+.admin-auth-form.ant-form .ant-form-item-label > label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+@media (max-width: 520px) {
+  .admin-auth-root {
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .admin-auth-card.ant-card .ant-card-body {
+    padding: 20px 16px 16px !important;
+  }
+
+  .admin-auth-submit.ant-btn.ant-btn-primary {
+    height: 44px;
+  }
 }
