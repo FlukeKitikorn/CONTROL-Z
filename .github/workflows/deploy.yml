@@ -154,7 +154,7 @@ jobs:
 
       # Docker layer cache is stored in GitHub Actions Cache (GHA scope per image)
       - name: Build and push backend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./Backend
           file: ./Backend/Dockerfile
@@ -166,7 +166,7 @@ jobs:
           cache-to:   type=gha,scope=backend,mode=max
 
       - name: Build and push frontend image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./Frontend
           file: ./Frontend/Dockerfile
