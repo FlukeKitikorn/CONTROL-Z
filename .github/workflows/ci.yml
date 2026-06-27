@@ -127,7 +127,7 @@ jobs:
 
       # Cache built dist so deploy workflow can download without rebuilding
       - name: Upload Frontend build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-dist-${{ github.sha }}
           path: Frontend/dist/
