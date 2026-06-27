@@ -52,10 +52,15 @@ export const ProfilePhotoField = forwardRef<ProfilePhotoFieldHandle, ProfilePhot
     const isSettings = variant === "settings"
 
     const draftRef = useRef(draft)
-    draftRef.current = draft
-
     const savedUrlRef = useRef(savedUrl)
-    savedUrlRef.current = savedUrl
+
+    useEffect(() => {
+      draftRef.current = draft
+    }, [draft])
+
+    useEffect(() => {
+      savedUrlRef.current = savedUrl
+    }, [savedUrl])
 
     const revokePending = useCallback((d: Draft) => {
       if (d.kind === "pending") URL.revokeObjectURL(d.previewUrl)

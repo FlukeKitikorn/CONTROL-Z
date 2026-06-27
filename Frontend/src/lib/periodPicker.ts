@@ -35,8 +35,9 @@ export function periodBoundsFromPicker(
 export function pickerValueFromBounds(
   granularity: PeriodGranularity,
   start?: Dayjs | null,
-  _end?: Dayjs | null,
+  end?: Dayjs | null,
 ): Dayjs | null {
+  void end
   if (!start?.isValid()) return null
   if (granularity === "daily") return start
   if (granularity === "weekly") return start.startOf("isoWeek")
