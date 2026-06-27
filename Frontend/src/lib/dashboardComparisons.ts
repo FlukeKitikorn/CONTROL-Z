@@ -8,7 +8,8 @@ export const COMPARE_MODE_OPTIONS: { value: CompareMode; label: string; short: s
   { value: "mom", label: "MoM (เทียบเดือนก่อน)", short: "MoM" },
 ]
 
-export function percentChange(current: number, previous: number): number | null {
+// REFACTOR: ใช้ภายในไฟล์เท่านั้น (ไม่มี external caller)
+function percentChange(current: number, previous: number): number | null {
   if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return null
   return ((current - previous) / previous) * 100
 }
@@ -18,7 +19,7 @@ function daysBetween(a: Date, b: Date): number {
 }
 
 /** เลือก snapshot ในอดีตที่ใกล้เป้าหมายมากที่สุด (YoY ~365 วัน, MoM ~30 วัน) */
-export function pickHistorySnapshot(
+function pickHistorySnapshot(
   history: CalculationResultsSnapshot[],
   mode: "yoy" | "mom",
   reference = new Date(),

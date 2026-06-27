@@ -1,4 +1,9 @@
-/** สร้างชื่อ–นามสกุลจากส่วน local ของอีเมลเมื่อยังไม่มีข้อมูลจริงจากระบบ */
+/**
+ * REFACTOR(CANDIDATE-REMOVAL): ไม่ถูก import — Phase A dead-code audit
+ */
+export {}
+
+/*
 export function profileFromEmail(email: string): { firstName: string; lastName: string } {
   const trimmed = email.trim()
   const local = (trimmed.split("@")[0] ?? "user").replace(/\+.*$/, "")
@@ -9,3 +14,4 @@ export function profileFromEmail(email: string): { firstName: string; lastName: 
     segments.length > 1 ? segments.slice(1).map(cap).join(" ") : "—"
   return { firstName, lastName }
 }
+*/

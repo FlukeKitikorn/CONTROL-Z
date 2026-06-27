@@ -1,3 +1,9 @@
+/**
+ * REFACTOR(CANDIDATE-REMOVAL): ไม่ถูก import — Phase A dead-code audit
+ */
+export {}
+
+/*
 import type { ReactNode } from "react"
 import { Button, Card } from "antd"
 
@@ -17,3 +23,4 @@ export function Panel({ title, actionText, children }: PanelProps) {
     </Card>
   )
 }
+*/

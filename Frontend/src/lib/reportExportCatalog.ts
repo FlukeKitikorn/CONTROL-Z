@@ -80,8 +80,7 @@ export type ReportExportCatalogItem = {
 
 
 
-export const REPORT_EXPORT_CATALOG: readonly ReportExportCatalogItem[] = [
-
+const REPORT_EXPORT_CATALOG: readonly ReportExportCatalogItem[] = [
   {
 
     code: "Fr_01",
@@ -280,13 +279,13 @@ export const REPORT_EXPORT_CATALOG: readonly ReportExportCatalogItem[] = [
 
 /** หัวข้อแผนภาพ Fr_02 (fr_02.html) */
 
-export const FR_02_ORGANIZATION_MAP_DIAGRAM_TITLE = "แผนภาพองค์กร"
+const FR_02_ORGANIZATION_MAP_DIAGRAM_TITLE = "แผนภาพองค์กร"
 
 
 
 /** หัวข้อแผนภาพ Fr_03.1 — เลย์เอาต์เดียวกับ Fr_02 */
 
-export const FR_03_1_ORGANIZATION_MAP_DIAGRAM_TITLE =
+const FR_03_1_ORGANIZATION_MAP_DIAGRAM_TITLE =
 
   "แผนภาพแสดงโครงสร้างขององค์กรและหน้าที่ความรับผิดชอบ"
 
@@ -312,7 +311,7 @@ export function organizationMapDiagramTitle(code: ReportTemplateCode): string {
 
 
 
-export function isReportTemplateCode(value: string): value is ReportTemplateCode {
+function isReportTemplateCode(value: string): value is ReportTemplateCode {
 
   return (REPORT_TEMPLATE_CODES as readonly string[]).includes(value)
 
@@ -338,33 +337,20 @@ export function catalogItemByCode(code: ReportTemplateCode): ReportExportCatalog
 
 
 
+/* REFACTOR(CANDIDATE-REMOVAL): ไม่มี caller — Phase A dead-code audit
 export function reportTemplateKey(code: ReportTemplateCode): string {
-
   return code
-
 }
-
-
 
 export function listCatalogBySection(section: string): readonly ReportExportCatalogItem[] {
-
   return REPORT_EXPORT_CATALOG.filter((x) => x.section === section)
-
 }
-
-
 
 export function codesInSection(section: string): ReportTemplateCode[] {
-
   return listCatalogBySection(section).map((x) => x.code)
-
 }
-
-
 
 export function getLockedTemplatePlaceholder(_code: ReportTemplateCode): null {
-
   return null
-
 }
-
+*/

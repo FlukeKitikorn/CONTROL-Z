@@ -4,6 +4,7 @@ import type { MenuProps } from "antd"
 import { BellOutlined, LogoutOutlined, SettingOutlined } from "@ant-design/icons"
 import { useNavigate } from "react-router"
 import { getAnnouncements } from "@/lib/api/service"
+import { performLogout } from "@/lib/logout"
 import { useAuthStore } from "@/store/useAuthStore"
 
 type AppNotification = {
@@ -59,7 +60,6 @@ export type AppHeaderAccountZoneProps = {
  */
 export function AppHeaderAccountZone({ logoutNavigateTo }: AppHeaderAccountZoneProps) {
   const navigate = useNavigate()
-  const logout = useAuthStore((s) => s.logout)
   const user = useAuthStore((s) => s.user)
 
   const [notifOpen, setNotifOpen] = useState(false)
@@ -225,8 +225,7 @@ export function AppHeaderAccountZone({ logoutNavigateTo }: AppHeaderAccountZoneP
             onClick: ({ key }) => {
               if (key === "settings") navigate("/app/settings")
               if (key === "logout") {
-                logout()
-                navigate(logoutNavigateTo)
+                void performLogout().then(() => navigate(logoutNavigateTo))
               }
             },
           }}

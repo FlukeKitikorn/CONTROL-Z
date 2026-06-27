@@ -1,6 +1,4 @@
 import type { CalculationRunResponse } from "@/lib/api/types"
-import { getLatestBaseYearSnapshot, getOrganizationStorageId } from "@/lib/organizationBaseYearStorage"
-import type { UserProfile } from "@/store/useAuthStore"
 
 export const CONTROL_Z_CALC_RESULTS_UPDATED = "control-z-calc-results-updated"
 
@@ -33,8 +31,6 @@ export function calculationSnapshotFromApi(r: CalculationRunResponse): Calculati
   }
 }
 
-const key = (orgId: string) => `control-z:calc-results:${orgId}`
-
 function emit(orgId: string) {
   if (typeof window === "undefined") return
   window.dispatchEvent(new CustomEvent(CONTROL_Z_CALC_RESULTS_UPDATED, { detail: { orgId } }))
@@ -44,6 +40,9 @@ function emit(orgId: string) {
 export function notifyCalculationResultsUpdated(orgId: string) {
   emit(orgId)
 }
+
+/* REFACTOR(CANDIDATE-REMOVAL): ไม่มี caller — Phase A dead-code audit
+const key = (orgId: string) => `control-z:calc-results:${orgId}`
 
 export function loadCalculationResultsSnapshot(orgId: string): CalculationResultsSnapshot | null {
   if (typeof localStorage === "undefined") return null
@@ -100,4 +99,5 @@ export function saveMockCalculationResults(
   }
   return snap
 }
+*/
 

@@ -50,7 +50,7 @@ export function LoginPage() {
         setLoginError("บัญชีนี้เป็นผู้ดูแลระบบ — กรุณาเข้าสู่ระบบที่หน้าสำหรับผู้ดูแลระบบ")
         return
       }
-      setSessionToken(token, data.expires_in ?? null)
+      setSessionToken(token, data.expires_in ?? null, data.session_id ?? null)
       const profile = mapAuthUserToProfile(u)
       loginAs(u.role, profile, token)
       message.success("เข้าสู่ระบบแล้ว")

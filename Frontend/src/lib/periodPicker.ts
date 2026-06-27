@@ -10,7 +10,7 @@ import {
 dayjs.extend(isoWeek)
 dayjs.extend(weekOfYear)
 
-export function deriveReportingYear(start: Dayjs, end: Dayjs): number {
+function deriveReportingYear(start: Dayjs, end: Dayjs): number {
   if (start.year() === end.year()) return end.year()
   const mid = start.add(end.diff(start, "day") / 2, "day")
   return mid.year()

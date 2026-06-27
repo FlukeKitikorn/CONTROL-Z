@@ -59,6 +59,7 @@ function resolveThreeLevel(
   return 1
 }
 
+/* REFACTOR(CANDIDATE-REMOVAL): ไม่มี caller — Phase A dead-code audit
 export function calculateMaterialTopicTotal(row: Scope3SelfAssessmentRow): number {
   const ghgScore = resolveGhgScore(row)
   const influence = resolveThreeLevel(row.influenceLevel, undefined)
@@ -72,6 +73,7 @@ export function calculateMaterialTopicTotal(row: Scope3SelfAssessmentRow): numbe
     opportunity * 0.1
   )
 }
+*/
 
 export function evaluateMaterialTopic(
   categoryId: string,

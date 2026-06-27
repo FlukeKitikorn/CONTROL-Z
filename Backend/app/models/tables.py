@@ -1,4 +1,4 @@
-"""SQLModel ตารางตามสคีมา control_z (docs/mysql-data-dictionary-and-seed.sql)."""
+"""SQLModel ตารางตามสคีมา control_z_v2 (docs/database-overview.md)."""
 
 from datetime import datetime
 from typing import Optional

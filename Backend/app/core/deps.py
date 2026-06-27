@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 from app.core.database import get_session as get_db_session
 from app.core.security import safe_decode_access_token
 from app.models import User, UserPrivilege
+from app.services.session_store import is_session_active, sessions_enabled
 
 security = HTTPBearer(auto_error=False)
 
@@ -24,6 +25,10 @@ def get_current_user(
     payload = safe_decode_access_token(creds.credentials)
     if not payload or "sub" not in payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    if sessions_enabled():
+        jti = payload.get("jti")
+        if isinstance(jti, str) and jti and not is_session_active(jti):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired or revoked")
     try:
         user_id = int(payload["sub"])
     except (TypeError, ValueError):

@@ -1,3 +1,4 @@
+// REFACTOR(CANDIDATE-REMOVAL): dev-only script ไม่ถูกเรียกจาก npm — Phase A dead-code audit
 /**
  * @deprecated ใช้ `node scripts/parse-fr04-table.mjs` — อ่าน `fr_04.htm` แบบตาราง UTF-8
  */

@@ -1,3 +1,10 @@
+/**
+ * REFACTOR(CANDIDATE-REMOVAL): ไม่ถูก import — Phase A dead-code audit
+ * โค้ดเดิมคอมเมนต์ไว้ด้านล่าง ลบไฟล์ได้เมื่อยืนยัน
+ */
+export {}
+
+/*
 import { Tag } from "antd"
 
 export type DataStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "CALCULATED"
@@ -19,3 +26,4 @@ const statusLabelTh: Record<DataStatus, string> = {
 export function StatusTag({ status }: { status: DataStatus }) {
   return <Tag color={statusColorMap[status]}>{statusLabelTh[status]}</Tag>
 }
+*/

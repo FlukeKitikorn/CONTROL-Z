@@ -14,6 +14,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router"
 import { mainAppBreadcrumbItems } from "@/app/breadcrumbs/routeBreadcrumbs"
 import { PageLoadingFallback } from "@/components/common/PageLoadingFallback"
 import { AppHeaderAccountZone } from "@/components/layout/AppHeaderAccountZone"
+import { performLogout } from "@/lib/logout"
 import { useAuthStore } from "@/store/useAuthStore"
 
 const { Header, Sider, Content } = Layout
@@ -23,7 +24,6 @@ const HEADER_LOGO = "/images/bg-logo.png"
 export function MainLayout() {
   const location = useLocation()
   const navigate = useNavigate()
-  const logout = useAuthStore((state) => state.logout)
   const role = useAuthStore((state) => state.role)
 
   const selectedKey =
@@ -141,8 +141,7 @@ export function MainLayout() {
               icon={<LogoutOutlined />}
               block
               onClick={() => {
-                logout()
-                navigate("/auth/login")
+                void performLogout().then(() => navigate("/auth/login"))
               }}
             >
               ออกจากระบบ

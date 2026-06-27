@@ -5,6 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, col, select
 
 from app.core.access import assert_org_access
+from app.core.cache import get_cache, invalidate_org_calculation_cache
+from app.core.cache_keys import calc_latest_key
+from app.core.config import settings
 from app.core.database import get_session
 from app.core.deps import get_current_privilege, get_current_user
 from app.models import Fr041Detail, SubjectScope, User, UserPrivilege
@@ -48,6 +51,7 @@ def save_bundle(
     bundle_dict = body.model_dump()
     save_annual_report_bundle(session, org_id, bundle_dict)
     session.commit()
+    invalidate_org_calculation_cache(org_id)
     return body
 
 
@@ -102,6 +106,7 @@ def run_calculation(
                 ran_at=ran_at,
             )
             session.commit()
+            invalidate_org_calculation_cache(org_id)
             total_kg = totals["total_kgco2e"]
             return CalculationRunResponse(
                 ran_at=ran_at,
@@ -152,8 +157,22 @@ def latest_calculation(
     user: Annotated[User, Depends(get_current_user)],
     priv: Annotated[UserPrivilege, Depends(get_current_privilege)],
 ) -> CalculationRunResponse:
-    """คำนวณแบบ on-the-fly (ไม่มีตาราง snapshot) — ผลล่าสุด = รันใหม่ทุกครั้ง"""
-    return run_calculation(org_id, session, user, priv, None)
+    """ผลล่าสุด — cache สั้นใน Redis เมื่อเปิดใช้ (ลดโหลด DB ซ้ำจาก Dashboard)"""
+    assert_org_access(user, priv, org_id)
+    cache = get_cache()
+    key = calc_latest_key(org_id)
+
+    def compute() -> CalculationRunResponse:
+        return run_calculation(org_id, session, user, priv, None)
+
+    if cache.enabled:
+        cached = cache.get_json(key)
+        if cached is not None:
+            return CalculationRunResponse(**cached)
+        result = compute()
+        cache.set_json(key, result.model_dump(), settings.redis_cache_calc_latest_ttl_seconds)
+        return result
+    return compute()
 
 
 @router.get("/organizations/{org_id}/calculations/history", response_model=list[CalculationRunResponse])

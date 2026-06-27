@@ -1,3 +1,8 @@
+/**
+ * REFACTOR(CANDIDATE-REMOVAL): ไม่ถูก import (main.tsx ใช้ index.css) — Phase A dead-code audit
+ * สไตล์ Vite template เดิมคอมเมนต์ไว้ด้านล่าง
+ */
+
 /* @import "tailwindcss";
 
 .counter {
