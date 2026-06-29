@@ -29,6 +29,7 @@ export function mainAppBreadcrumbItems(pathname: string): BreadcrumbItem[] {
 
   const routes: Record<string, BreadcrumbItem[]> = {
     "/app/data-input": [dash, { title: "กรอกข้อมูล" }],
+    "/app/records": [dash, { title: "บันทึกการกรอกข้อมูล" }],
     "/app/results": [dash, { title: "การคำนวณ" }],
     "/app/settings": [dash, { title: "ตั้งค่า" }],
     "/app/setup/organization": [dash, { title: "ตั้งค่าองค์กร" }, { title: "องค์กร" }],

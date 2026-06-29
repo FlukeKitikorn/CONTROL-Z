@@ -446,6 +446,22 @@ class ActivityEntryRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ActivityEntrySummary(BaseModel):
+    total: int
+    scope1: int
+    scope2: int
+    scope3: int
+    reporting_years: list[int] = Field(default_factory=list)
+
+
+class ActivityEntryListResponse(BaseModel):
+    items: list[ActivityEntryRead]
+    total: int
+    page: int
+    page_size: int
+    summary: ActivityEntrySummary
+
+
 class EfResolveRow(BaseModel):
     option_id: int | None = None
     scope_scid: int | None = None

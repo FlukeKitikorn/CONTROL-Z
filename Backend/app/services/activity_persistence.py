@@ -285,6 +285,166 @@ def save_annual_report_bundle(
     )
 
 
+_META_ENTRY_KINDS = ("annual_report_bundle", "calculation_snapshot")
+
+
+def list_activity_entries_page(
+    session: Session,
+    org_id: int,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    fid: int | None = None,
+    reporting_year: int | None = None,
+    scope_scid: int | None = None,
+    entry_kind: str | None = None,
+    q: str | None = None,
+    include_meta: bool = False,
+) -> dict[str, Any]:
+    """รายการ activity_entries แบบแบ่งหน้า — คืน items, total, summary."""
+    if not _table_exists(session, "activity_entries"):
+        return {
+            "items": [],
+            "total": 0,
+            "page": page,
+            "page_size": page_size,
+            "summary": {
+                "total": 0,
+                "scope1": 0,
+                "scope2": 0,
+                "scope3": 0,
+                "reporting_years": [],
+            },
+        }
+
+    page = max(1, page)
+    page_size = min(max(1, page_size), 100)
+    offset = (page - 1) * page_size
+
+    clauses = ["organization_id = :org"]
+    params: dict[str, Any] = {"org": org_id}
+
+    if fid is not None:
+        clauses.append("fid = :fid")
+        params["fid"] = fid
+    if reporting_year is not None:
+        clauses.append(
+            "JSON_UNQUOTE(JSON_EXTRACT(entry_payload, '$.reporting_year')) = :year"
+        )
+        params["year"] = str(reporting_year)
+    if scope_scid is not None:
+        clauses.append("scope_scid = :scope")
+        params["scope"] = scope_scid
+    if entry_kind:
+        clauses.append("entry_kind = :kind")
+        params["kind"] = entry_kind
+    if not include_meta:
+        clauses.append("entry_kind NOT IN ('annual_report_bundle', 'calculation_snapshot')")
+    if q and q.strip():
+        clauses.append("CAST(entry_payload AS CHAR) LIKE :q")
+        params["q"] = f"%{q.strip()}%"
+
+    where = " AND ".join(clauses)
+
+    count_row = session.execute(
+        text(f"SELECT COUNT(*) FROM activity_entries WHERE {where}"),
+        params,
+    ).first()
+    total = int(count_row[0]) if count_row else 0
+
+    summary_clauses = ["organization_id = :org"]
+    summary_params: dict[str, Any] = {"org": org_id}
+    if fid is not None:
+        summary_clauses.append("fid = :fid")
+        summary_params["fid"] = fid
+    if not include_meta:
+        summary_clauses.append("entry_kind NOT IN ('annual_report_bundle', 'calculation_snapshot')")
+    summary_where = " AND ".join(summary_clauses)
+
+    summary_row = session.execute(
+        text(
+            f"""
+            SELECT
+              COUNT(*) AS total,
+              SUM(CASE WHEN scope_scid = 1 THEN 1 ELSE 0 END) AS scope1,
+              SUM(CASE WHEN scope_scid = 2 THEN 1 ELSE 0 END) AS scope2,
+              SUM(CASE WHEN scope_scid = 3 THEN 1 ELSE 0 END) AS scope3
+            FROM activity_entries
+            WHERE {summary_where}
+            """
+        ),
+        summary_params,
+    ).mappings().first()
+
+    year_rows = session.execute(
+        text(
+            f"""
+            SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(entry_payload, '$.reporting_year')) AS y
+            FROM activity_entries
+            WHERE {summary_where}
+              AND JSON_EXTRACT(entry_payload, '$.reporting_year') IS NOT NULL
+            ORDER BY y DESC
+            """
+        ),
+        summary_params,
+    ).all()
+    reporting_years: list[int] = []
+    for yr in year_rows:
+        raw = yr[0]
+        if raw is None:
+            continue
+        try:
+            reporting_years.append(int(str(raw)))
+        except ValueError:
+            continue
+
+    rows = session.execute(
+        text(
+            f"""
+            SELECT aeid, organization_id, fid, rpid, scope_scid, entry_kind,
+                   category_code, entry_payload
+            FROM activity_entries
+            WHERE {where}
+            ORDER BY aeid DESC
+            LIMIT :limit OFFSET :offset
+            """
+        ),
+        {**params, "limit": page_size, "offset": offset},
+    ).mappings().all()
+
+    items: list[dict[str, Any]] = []
+    for r in rows:
+        payload = r["entry_payload"]
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        items.append(
+            {
+                "aeid": r["aeid"],
+                "organization_id": r["organization_id"],
+                "fid": r["fid"],
+                "rpid": r["rpid"],
+                "scope_scid": r["scope_scid"],
+                "entry_kind": r["entry_kind"],
+                "category_code": r["category_code"],
+                "entry_payload": payload if isinstance(payload, dict) else {},
+            }
+        )
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "summary": {
+            "total": int(summary_row["total"] or 0) if summary_row else 0,
+            "scope1": int(summary_row["scope1"] or 0) if summary_row else 0,
+            "scope2": int(summary_row["scope2"] or 0) if summary_row else 0,
+            "scope3": int(summary_row["scope3"] or 0) if summary_row else 0,
+            "reporting_years": reporting_years,
+        },
+    }
+
+
 def load_latest_annual_report_bundle(session: Session, org_id: int) -> dict[str, Any] | None:
     if not _table_exists(session, "activity_entries"):
         return None

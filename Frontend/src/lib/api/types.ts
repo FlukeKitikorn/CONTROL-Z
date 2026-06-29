@@ -67,6 +67,42 @@ export type AnnualReportingBundleRead = {
   payload: Record<string, unknown>
 }
 
+export type ActivityEntryRead = {
+  aeid: number
+  organization_id: number
+  fid: number
+  rpid: number | null
+  scope_scid: number
+  entry_kind: string
+  category_code: string | null
+  entry_payload: Record<string, unknown>
+}
+
+export type ActivityEntrySummary = {
+  total: number
+  scope1: number
+  scope2: number
+  scope3: number
+  reporting_years: number[]
+}
+
+export type ActivityEntryListResponse = {
+  items: ActivityEntryRead[]
+  total: number
+  page: number
+  page_size: number
+  summary: ActivityEntrySummary
+}
+
+export type ActivityEntryListParams = {
+  page?: number
+  page_size?: number
+  reporting_year?: number
+  scope_scid?: number
+  entry_kind?: string
+  q?: string
+}
+
 export type ReportBundleResponse = {
   organization_id: number
   form_code: string

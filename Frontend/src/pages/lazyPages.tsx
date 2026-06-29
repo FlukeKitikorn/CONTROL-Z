@@ -38,6 +38,9 @@ export const BaseYearPage = lazy(() =>
 export const DataInputPage = lazy(() =>
   import("@/pages/DataInputPage").then((m) => ({ default: m.DataInputPage })),
 )
+export const DataRecordsPage = lazy(() =>
+  import("@/pages/DataRecordsPage").then((m) => ({ default: m.DataRecordsPage })),
+)
 export const ResultsPage = lazy(() =>
   import("@/pages/ResultsPage").then((m) => ({ default: m.ResultsPage })),
 )

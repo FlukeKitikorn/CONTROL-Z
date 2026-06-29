@@ -2,6 +2,8 @@ import { apiUrl } from "@/lib/apiBase"
 import { ApiError, apiRequest } from "@/lib/api/http"
 import { getAccessToken } from "@/lib/authToken"
 import type {
+  ActivityEntryListParams,
+  ActivityEntryListResponse,
   AdminAuditEntryRead,
   AdminUserListItem,
   AnnouncementRead,
@@ -67,6 +69,23 @@ export async function postMeAvatar(file: File): Promise<MeResponse> {
 
 export async function getOrganization(orgId: number): Promise<OrganizationRead> {
   return apiRequest<OrganizationRead>(`/api/v1/organizations/${orgId}`)
+}
+
+export async function listActivityEntries(
+  orgId: number,
+  params: ActivityEntryListParams = {},
+): Promise<ActivityEntryListResponse> {
+  const qs = new URLSearchParams()
+  if (params.page != null) qs.set("page", String(params.page))
+  if (params.page_size != null) qs.set("page_size", String(params.page_size))
+  if (params.reporting_year != null) qs.set("reporting_year", String(params.reporting_year))
+  if (params.scope_scid != null) qs.set("scope_scid", String(params.scope_scid))
+  if (params.entry_kind) qs.set("entry_kind", params.entry_kind)
+  if (params.q) qs.set("q", params.q)
+  const query = qs.toString()
+  return apiRequest<ActivityEntryListResponse>(
+    `/api/v1/organizations/${orgId}/activity-entries${query ? `?${query}` : ""}`,
+  )
 }
 
 /* REFACTOR(CANDIDATE-REMOVAL): API client ยังไม่มี caller — Phase A dead-code audit
