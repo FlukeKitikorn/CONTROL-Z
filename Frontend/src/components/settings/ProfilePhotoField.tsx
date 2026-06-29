@@ -12,6 +12,7 @@ import {
   useState,
 } from "react"
 import { readFileAsDataURL } from "@/lib/readFileAsDataURL"
+import { resolveMediaUrl } from "@/lib/mediaUrl"
 
 const ACCEPT = "image/png,image/jpeg,image/webp"
 
@@ -85,12 +86,13 @@ export const ProfilePhotoField = forwardRef<ProfilePhotoFieldHandle, ProfilePhot
         ]
       }
       if (draft.kind === "unchanged" && savedUrl) {
+        const url = resolveMediaUrl(savedUrl) ?? savedUrl
         return [
           {
             uid: "profile-saved",
             name: "profile",
             status: "done",
-            url: savedUrl,
+            url,
           },
         ]
       }

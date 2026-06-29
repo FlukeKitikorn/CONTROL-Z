@@ -100,23 +100,18 @@ async def post_me_avatar(
     priv: Annotated[UserPrivilege, Depends(get_current_privilege)],
     file: UploadFile = File(...),
 ) -> UserPublic:
-    from pathlib import Path
+    from app.services.image_storage import ImageAssetKind, delete_stored_file, store_image
 
-    import uuid
-
-    base = Path(__file__).resolve().parent.parent.parent / "uploads"
-    base.mkdir(parents=True, exist_ok=True)
-    org_dir = base / str(user.organization_id)
-    org_dir.mkdir(parents=True, exist_ok=True)
-    ext = Path(file.filename or "avatar").suffix[:8] or ".bin"
-    name = f"user_{user.user_id}_{uuid.uuid4().hex[:8]}{ext}"
-    dest = org_dir / name
     content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="ไฟล์ใหญ่เกิน 5MB")
-    dest.write_bytes(content)
-    rel = f"/static/{user.organization_id}/{name}"
-    user.image = rel[:100]
+    delete_stored_file(user.image)
+    url = store_image(
+        content,
+        org_id=user.organization_id,
+        user_id=user.user_id,
+        kind=ImageAssetKind.AVATAR,
+        owner_id=user.user_id,
+    )
+    user.image = url[:100]
     session.add(user)
     session.commit()
     session.refresh(user)
