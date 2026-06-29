@@ -56,3 +56,4 @@ websockets==16.0
 win32_setctime==1.2.0
 pytest==9.0.3
 redis==5.2.1
+Pillow==12.2.0

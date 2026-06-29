@@ -47,6 +47,14 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = False
     session_cookie_samesite: str = "lax"
 
+    # ไฟล์อัปโหลด — {repo}/storage/uploads (Docker: UPLOAD_ROOT=/app/storage/uploads)
+    upload_root: str = "storage/uploads"
+    upload_max_bytes: int = 15 * 1024 * 1024
+    image_webp_quality: int = 92
+    image_avatar_max_edge: int = 1024
+    image_logo_max_edge: int = 1200
+    image_org_asset_max_edge: int = 2048
+
     @cached_property
     def redis_configured(self) -> bool:
         return bool(self.redis_url.strip())

@@ -4,6 +4,7 @@ import type { MenuProps } from "antd"
 import { BellOutlined, LogoutOutlined, SettingOutlined } from "@ant-design/icons"
 import { useNavigate } from "react-router"
 import { getAnnouncements } from "@/lib/api/service"
+import { resolveMediaUrl } from "@/lib/mediaUrl"
 import { performLogout } from "@/lib/logout"
 import { useAuthStore } from "@/store/useAuthStore"
 
@@ -120,6 +121,7 @@ export function AppHeaderAccountZone({ logoutNavigateTo }: AppHeaderAccountZoneP
   const displayFirst = user?.fname ?? "ผู้ใช้"
   const displayLast = user?.lname ?? "—"
   const displayEmail = user?.email ?? "—"
+  const avatarSrc = resolveMediaUrl(user?.imageprofile)
 
   const avatarMenuItems: MenuProps["items"] = [
     {
@@ -232,8 +234,8 @@ export function AppHeaderAccountZone({ logoutNavigateTo }: AppHeaderAccountZoneP
           trigger={["hover"]}
           placement="bottomRight"
         >
-          <Avatar size={36} style={{ background: "#0f766e", cursor: "pointer" }}>
-            {avatarInitials(displayFirst, displayLast)}
+          <Avatar size={36} src={avatarSrc} style={{ background: "#0f766e", cursor: "pointer" }}>
+            {avatarSrc ? null : avatarInitials(displayFirst, displayLast)}
           </Avatar>
         </Dropdown>
         <div className="max-sm:hidden" style={{ textAlign: "left", lineHeight: 1.35, maxWidth: 220 }}>

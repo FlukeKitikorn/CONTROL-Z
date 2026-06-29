@@ -1,6 +1,4 @@
-from pathlib import Path
 from typing import Annotated, Literal
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlmodel import Session, select
@@ -261,30 +259,45 @@ async def upload_org_asset(
     kind: Annotated[Literal["logo", "map", "structure", "image"], Form()],
     file: UploadFile = File(...),
 ) -> Organization:
+    from app.services.image_storage import ImageAssetKind, delete_stored_file, store_image
+
     assert_org_access(user, priv, org_id)
     org = session.get(Organization, org_id)
     if org is None:
         raise HTTPException(status_code=404, detail="ไม่พบองค์กร")
-    base = Path(__file__).resolve().parent.parent.parent / "uploads"
-    base.mkdir(parents=True, exist_ok=True)
-    org_dir = base / str(org_id) / "assets"
-    org_dir.mkdir(parents=True, exist_ok=True)
-    ext = Path(file.filename or "file").suffix[:8] or ".bin"
-    name = f"{kind}_{uuid4().hex[:10]}{ext}"
-    dest = org_dir / name
-    content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="ไฟล์ใหญ่เกิน 5MB")
-    dest.write_bytes(content)
-    rel = f"/static/{org_id}/assets/{name}"
+    kind_map = {
+        "logo": ImageAssetKind.LOGO,
+        "map": ImageAssetKind.MAP,
+        "structure": ImageAssetKind.STRUCTURE,
+        "image": ImageAssetKind.IMAGE,
+    }
+    asset_kind = kind_map[kind]
+    prev_url: str | None = None
     if kind == "logo":
-        org.logo = rel[:100]
+        prev_url = org.logo
     elif kind == "map":
-        org.organization_map = rel[:50]
+        prev_url = org.organization_map
     elif kind == "structure":
-        org.organ_structure = rel[:50]
+        prev_url = org.organ_structure
     else:
-        org.organization_image = rel[:50]
+        prev_url = org.organization_image
+    content = await file.read()
+    delete_stored_file(prev_url)
+    url = store_image(
+        content,
+        org_id=org_id,
+        user_id=None,
+        kind=asset_kind,
+        owner_id=org_id,
+    )
+    if kind == "logo":
+        org.logo = url[:100]
+    elif kind == "map":
+        org.organization_map = url[:50]
+    elif kind == "structure":
+        org.organ_structure = url[:50]
+    else:
+        org.organization_image = url[:50]
     session.add(org)
     session.commit()
     session.refresh(org)
