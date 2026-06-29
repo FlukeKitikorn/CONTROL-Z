@@ -3,6 +3,7 @@ import { Breadcrumb, Button, Flex, Layout, Menu, Space, Typography } from "antd"
 import type { MenuProps } from "antd"
 import {
   DashboardOutlined,
+  DatabaseOutlined,
   FormOutlined,
   FileTextOutlined,
   LineChartOutlined,
@@ -32,6 +33,7 @@ export function MainLayout() {
       "/app/setup/organization",
       "/app/reports",
       "/app/data-input",
+      "/app/records",
       "/app/results",
       "/app",
     ]
@@ -47,6 +49,7 @@ export function MainLayout() {
         children: [
           { key: "/app", icon: <DashboardOutlined />, label: <NavLink to="/app">แดชบอร์ด</NavLink> },
           { key: "/app/data-input", icon: <FormOutlined />, label: <NavLink to="/app/data-input">กรอกข้อมูล</NavLink> },
+          { key: "/app/records", icon: <DatabaseOutlined />, label: <NavLink to="/app/records">บันทึกข้อมูล</NavLink> },
           { key: "/app/results", icon: <LineChartOutlined />, label: <NavLink to="/app/results">การคำนวณ</NavLink> },
           { key: "/app/reports", icon: <FileTextOutlined />, label: <NavLink to="/app/reports">รายงานและส่งออก</NavLink> },
         ],

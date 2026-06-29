@@ -122,8 +122,8 @@ export function SettingsPage() {
   const accessToken = useAuthStore((s) => s.accessToken)
   const [form] = Form.useForm()
   const profilePhotoRef = useRef<ProfilePhotoFieldHandle>(null)
-  const [organizationOptions, setOrganizationOptions] = useState<Array<{ value: number; label: string }>>([])
-  const [organizationsLoading, setOrganizationsLoading] = useState(false)
+  const [orgDisplayName, setOrgDisplayName] = useState<string | null>(null)
+  const [orgLoading, setOrgLoading] = useState(false)
   const subdistrictValue = (Form.useWatch("subdistrict", form) as string | undefined) ?? ""
   const districtValue = (Form.useWatch("district", form) as string | undefined) ?? ""
   const provinceValue = (Form.useWatch("province", form) as string | undefined) ?? ""
@@ -162,12 +162,12 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (!user?.organization_id) {
-      setOrganizationOptions([])
-      setOrganizationsLoading(false)
+      setOrgDisplayName(null)
+      setOrgLoading(false)
       return
     }
     let cancelled = false
-    setOrganizationsLoading(true)
+    setOrgLoading(true)
     ;(async () => {
       try {
         const id =
@@ -175,27 +175,22 @@ export function SettingsPage() {
             ? user.organization_id
             : Number.parseInt(String(user.organization_id), 10)
         if (!Number.isFinite(id)) {
-          if (!cancelled) setOrganizationOptions([])
+          if (!cancelled) setOrgDisplayName(null)
           return
         }
         const org = await getOrganization(id)
         if (cancelled) return
-        setOrganizationOptions([
-          {
-            value: org.organization_id,
-            label: `${org.organization_name} (${org.name_of_agency})`,
-          },
-        ])
+        setOrgDisplayName(`${org.organization_name} (${org.name_of_agency})`)
       } catch {
-        if (!cancelled) setOrganizationOptions([])
+        if (!cancelled) setOrgDisplayName(null)
       } finally {
-        if (!cancelled) setOrganizationsLoading(false)
+        if (!cancelled) setOrgLoading(false)
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [role, user?.organization_id])
+  }, [user?.organization_id])
 
   const onFinish = async (values: Record<string, unknown>) => {
     if (!user || !role) {
@@ -221,13 +216,11 @@ export function SettingsPage() {
         me = await postMeAvatar(pendingAvatar)
       }
       const base = mapAuthUserToProfile(me as AuthTokenResponse["user"])
-      const orgFromForm = (values.organization_id as string | number | undefined) ?? base.organization_id
       loginAs(
         role,
         {
           ...base,
           username: (values.username as string)?.trim() || base.username,
-          organization_id: role === "ADMIN" ? base.organization_id : orgFromForm,
         },
         accessToken,
       )
@@ -437,53 +430,45 @@ export function SettingsPage() {
 
             <Divider className="!my-8 !border-slate-100" />
 
-            {role === "ADMIN" ? (
-              <>
-                <SubsectionTitle
-                  icon={<BankOutlined />}
-                  title="องค์กร"
-                  subtitle="ข้อมูลองค์กรที่สังกัด — แก้ไขรายละเอียดองค์กรในระบบได้ที่เมนูผู้ดูแลระบบเท่านั้น"
-                />
-                <Row gutter={[16, 0]}>
-                  <Col xs={24}>
-                    <Typography.Paragraph className="!mb-2">
-                      <Typography.Text strong>องค์กรที่สังกัด: </Typography.Text>
-                      <Typography.Text>
-                        {organizationOptions[0]?.label ?? (organizationsLoading ? "กำลังโหลด..." : "—")}
-                      </Typography.Text>
-                    </Typography.Paragraph>
-                    <Typography.Paragraph type="secondary" className="!mb-0 !text-sm">
+            <SubsectionTitle
+              icon={<BankOutlined />}
+              title="องค์กร"
+              subtitle={
+                role === "ADMIN"
+                  ? "ข้อมูลองค์กรที่สังกัด — แก้ไขรายละเอียดองค์กรในระบบได้ที่เมนูผู้ดูแลระบบเท่านั้น"
+                  : "บัญชีผู้ใช้หนึ่งบัญชีสังกัดได้หนึ่งองค์กร — แก้ไขรายละเอียดองค์กรได้ที่เมนูตั้งค่าองค์กร"
+              }
+            />
+            <Row gutter={[16, 0]}>
+              <Col xs={24}>
+                <Typography.Paragraph className="!mb-2">
+                  <Typography.Text strong>องค์กรที่สังกัด: </Typography.Text>
+                  <Typography.Text>
+                    {orgDisplayName ?? (orgLoading ? "กำลังโหลด..." : "—")}
+                  </Typography.Text>
+                </Typography.Paragraph>
+                <Typography.Paragraph type="secondary" className="!mb-0 !text-sm">
+                  {role === "ADMIN" ? (
+                    <>
                       จัดการองค์กร:{" "}
                       <Link to="/admin/organizations" className="text-teal-700 underline-offset-2 hover:underline">
                         ผู้ดูแลระบบ → องค์กร
                       </Link>
-                    </Typography.Paragraph>
-                    <Form.Item name="organization_id" hidden>
-                      <Input type="hidden" />
-                    </Form.Item>
-                  </Col>
-                </Row>
-              </>
-            ) : (
-              <>
-                <SubsectionTitle icon={<BankOutlined />} title="องค์กร" subtitle="เลือกองค์กรที่สังกัด" />
-                <Row gutter={[16, 0]}>
-                  <Col xs={24} md={16} lg={14}>
-                    <Form.Item name="organization_id" label="องค์กร">
-                      <Select
-                        allowClear
-                        showSearch
-                        placeholder="ค้นหาหรือเลือกองค์กร"
-                        optionFilterProp="label"
-                        options={organizationOptions}
-                        loading={organizationsLoading}
-                        notFoundContent={organizationsLoading ? "กำลังโหลด..." : "ไม่พบข้อมูล"}
-                      />
-                    </Form.Item>
-                  </Col>
-                </Row>
-              </>
-            )}
+                    </>
+                  ) : (
+                    <>
+                      แก้ไขข้อมูลองค์กร:{" "}
+                      <Link to="/app/setup/organization" className="text-teal-700 underline-offset-2 hover:underline">
+                        ตั้งค่าองค์กร
+                      </Link>
+                    </>
+                  )}
+                </Typography.Paragraph>
+                <Form.Item name="organization_id" hidden>
+                  <Input type="hidden" />
+                </Form.Item>
+              </Col>
+            </Row>
           </SectionBlock>
 
           <SectionBlock

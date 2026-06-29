@@ -22,8 +22,11 @@ from app.models import (
     User,
     UserPrivilege,
 )
+from app.services.activity_persistence import list_activity_entries_page
 from app.schemas.rest import (
+    ActivityEntryListResponse,
     ActivityEntryRead,
+    ActivityEntrySummary,
     CategoryAnswerCreate,
     CategoryAnswerRead,
     CategoryAnswerUpsert,
@@ -790,59 +793,46 @@ def put_fr04_details(
 # --- Activity entries (หน้ากรอกข้อมูล v2) ---
 @router.get(
     "/organizations/{org_id}/activity-entries",
-    response_model=list[ActivityEntryRead],
+    response_model=ActivityEntryListResponse,
 )
 def list_activity_entries(
     org_id: int,
     session: Annotated[Session, Depends(get_session)],
     user: Annotated[User, Depends(get_current_user)],
     priv: Annotated[UserPrivilege, Depends(get_current_privilege)],
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     fid: int | None = Query(default=None),
     reporting_year: int | None = Query(default=None),
-) -> list[ActivityEntryRead]:
+    scope_scid: int | None = Query(default=None, ge=1, le=3),
+    entry_kind: str | None = Query(default=None),
+    q: str | None = Query(default=None, max_length=200),
+    include_meta: bool = Query(default=False),
+) -> ActivityEntryListResponse:
+    """รายการกิจกรรมที่บันทึกจากหน้ากรอกข้อมูล — แบ่งหน้าเพื่อรองรับจำนวน record มาก."""
     assert_org_access(user, priv, org_id)
     try:
-        clauses = ["organization_id = :org"]
-        params: dict[str, Any] = {"org": org_id}
-        if fid is not None:
-            clauses.append("fid = :fid")
-            params["fid"] = fid
-        if reporting_year is not None:
-            clauses.append(
-                "JSON_UNQUOTE(JSON_EXTRACT(entry_payload, '$.reporting_year')) = :year"
-            )
-            params["year"] = str(reporting_year)
-        where = " AND ".join(clauses)
-        rows = session.execute(
-            text(
-                f"""
-                SELECT aeid, organization_id, fid, rpid, scope_scid, entry_kind,
-                       category_code, entry_payload
-                FROM activity_entries
-                WHERE {where}
-                ORDER BY aeid
-                """
-            ),
-            params,
-        ).mappings().all()
+        raw = list_activity_entries_page(
+            session,
+            org_id,
+            page=page,
+            page_size=page_size,
+            fid=fid,
+            reporting_year=reporting_year,
+            scope_scid=scope_scid,
+            entry_kind=entry_kind,
+            q=q,
+            include_meta=include_meta,
+        )
     except Exception as exc:
         raise HTTPException(status_code=503, detail="ตาราง activity_entries ยังไม่มีในฐานข้อมูลนี้") from exc
 
-    out: list[ActivityEntryRead] = []
-    for r in rows:
-        payload = r["entry_payload"]
-        if isinstance(payload, str):
-            payload = json.loads(payload)
-        out.append(
-            ActivityEntryRead(
-                aeid=r["aeid"],
-                organization_id=r["organization_id"],
-                fid=r["fid"],
-                rpid=r["rpid"],
-                scope_scid=r["scope_scid"],
-                entry_kind=r["entry_kind"],
-                category_code=r["category_code"],
-                entry_payload=payload if isinstance(payload, dict) else {},
-            )
-        )
-    return out
+    items = [ActivityEntryRead(**row) for row in raw["items"]]
+    summary = ActivityEntrySummary(**raw["summary"])
+    return ActivityEntryListResponse(
+        items=items,
+        total=raw["total"],
+        page=raw["page"],
+        page_size=raw["page_size"],
+        summary=summary,
+    )

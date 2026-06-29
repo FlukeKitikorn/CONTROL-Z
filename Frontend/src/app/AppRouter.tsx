@@ -13,6 +13,7 @@ import {
   BaseYearPage,
   DashboardPage,
   DataInputPage,
+  DataRecordsPage,
   DataMonitoringPage,
   EmissionFactorsPage,
   ForgotPasswordPage,
@@ -85,6 +86,7 @@ export function AppRouter() {
           <Route path="/app/setup/organization" element={<OrganizationSetupPage />} />
           <Route path="/app/setup/base-year" element={<BaseYearPage />} />
           <Route path="/app/data-input" element={<DataInputPage />} />
+          <Route path="/app/records" element={<DataRecordsPage />} />
           <Route path="/app/results" element={<ResultsPage />} />
           <Route path="/app/settings" element={<SettingsPage />} />
         </Route>
